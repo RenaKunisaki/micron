@@ -1,6 +1,6 @@
 # Micron: Minimal operating system for Teensy microcontrollers
 Copyright 2021 Rena Kunisaki.
-Published under the BSD License.
+Published under the MIT License.
 Includes lots of code from the [Teensyduino project](http://www.pjrc.com/teensy/teensyduino.html).
 
 This is a work in progress. It includes drivers for most of the onboard
