@@ -91,6 +91,5 @@ int main() {
 		delayMS(time_unit * 20);
 	}
 
-	//rebootIntoBootloader();
 	return 0;
 }

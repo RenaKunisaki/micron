@@ -387,7 +387,7 @@ void check_debug_commands() {
 	}
 	else if(chr == 0x8000) { //Escape
 		printf("Rebooting!\r\n");
-		rebootIntoBootloader();
+		osBootloader();
 	}
 	else if(chr == 0x8050) puts("\e[2J\e[14;1H"); //F1 - clear screen, cursor to 1,16
 	else if(chr == 0x8018) print_usb_buffers(); //F12

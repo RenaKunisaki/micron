@@ -217,7 +217,7 @@ extern "C" COLD NORETURN NAKED void hardfault(volatile uint32_t *sp) {
 	dump_stack(sp);
 
 	serial_puts_isr("\r\nRebooting.\r\n");
-	rebootIntoBootloader();
+	osBootloader();
 	while(1) {
 		blinkNum(1);
 	}

@@ -156,7 +156,7 @@ int endp, volatile usbBdt_t *buffer, uint8_t stat) {
 			&& lastSetup.wLength == 1
 			&& (*(uint8_t*)buffer->addr) == 134) {
 				USB_DPRINT("Rebooting!\r\n");
-				rebootIntoBootloader();
+				osBootloader();
 			}
 			break;
 		}
