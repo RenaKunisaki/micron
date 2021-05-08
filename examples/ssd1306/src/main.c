@@ -2,6 +2,7 @@
  */
 #include <micron.h>
 #include <drivers/display/ssd1306/ssd1306.h>
+#include <drivers/display/fonts/8x8_1bpp.h>
 
 uint8_t vram[(128 * 64) / 8];
 SSD1306_State display;
@@ -54,16 +55,25 @@ int main() {
     delayMS(500);
     ssd1306_setTestMode(&display, 0);
 
-    int i = 0;
+    int frame = 0;
+    int fps = 0;
+    int w = display.display.width;
+    int h = display.display.height;
+    char msg[64];
+    uint32_t tStart = millis();
     while(1) {
-        int w = display.display.width;
-        int h = display.display.height;
         displayFillRect(&display.display, 0, 0, w, h, 0);
         displayDrawLine(&display.display, w/2, h-1,
-            i % w, 16, 1);
+            (frame * w) / 30, 16, 1);
+        sprintf(msg, "%3d FPS", fps);
+        displayDrawStr(&display.display, &font_8x8_1bpp, 4, 4, msg, 1);
         displayUpdate(&display.display);
         idle();
-        i++;
+        frame++;
+        if(frame >= 30) frame = 0;
+        uint32_t tEnd = millis();
+        fps = 1000 / (tEnd - tStart);
+        tStart = tEnd;
     }
 
 	return 0;

@@ -21,5 +21,4 @@ PROJECT=ssd1306
 #WITH_STDLIBS=0
 
 # Include the makefile for the board we're targeting.
-# Valid boards are teensy30 (not tested) and teensy31.
 include micron/make/teensy31.mk

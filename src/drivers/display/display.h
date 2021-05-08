@@ -1,4 +1,5 @@
 //Generic routines for driving displays.
+#include "fonts/font.h"
 
 struct MicronDisplayState; //declare
 
@@ -40,3 +41,7 @@ int displayFillRect(MicronDisplayState *state, int xs, int ys, int w, int h, uin
 
 //drawline.c
 int displayDrawLine(MicronDisplayState *state, int x1, int y1, int x2, int y2, uint32_t p);
+
+//drawtext.c
+int displayDrawChr(MicronDisplayState *state, const Font *font, int xpos, int ypos, int chr, uint32_t p);
+int displayDrawStr(MicronDisplayState *state, const Font *font, int xpos, int ypos, const char *str, uint32_t p);
