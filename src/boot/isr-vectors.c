@@ -2,16 +2,16 @@
 
 //Interrupt vector table in RAM
 #if defined(__MK20DX128__)
-	SECTION(".dmabuffers") USED ALIGN(256)
+	SECTION(".dmabuffers") USED_SYMBOL ALIGN(256)
 #else
-	SECTION(".dmabuffers") USED ALIGN(512)
+	SECTION(".dmabuffers") USED_SYMBOL ALIGN(512)
 #endif
 void (* _VectorsRam[NVIC_NUM_INTERRUPTS+16])(void);
 
 //Interrupt vector table in flash.
 //This table gets copied to the table in RAM at startup, but it can also be
 //used on its own by editing the startup code to prevent doing that.
-SECTION(".vectors") USED
+SECTION(".vectors") USED_SYMBOL
 void (* const _VectorsFlash[NVIC_NUM_INTERRUPTS+16])(void) = {
 	(void (*)(void))((unsigned long)&_estack), //0 ARM: Initial Stack Pointer
 	ResetHandler,                 //1 ARM: Initial Program Counter

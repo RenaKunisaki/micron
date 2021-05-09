@@ -131,16 +131,16 @@ extern void (* _VectorsRam[NVIC_NUM_INTERRUPTS+16])(void);
 //any handler attached. The default implementation just calls isrFault().
 WEAK void isrFault(void);
 WEAK void isrUnused(void);
-ISR void isrDefaultSystick(void);
-ISR void isrDefaultPortA(void);
-ISR void isrDefaultPortB(void);
-ISR void isrDefaultPortC(void);
-ISR void isrDefaultPortD(void);
-ISR void isrDefaultPortE(void);
-ISR void isrDefaultUsb();
-ISR void isrDefaultI2c0(void);
-ISR void isrDefaultI2c1(void);
-ISR void isrDefaultI2c2(void);
+ISRFUNC void isrDefaultSystick(void);
+ISRFUNC void isrDefaultPortA(void);
+ISRFUNC void isrDefaultPortB(void);
+ISRFUNC void isrDefaultPortC(void);
+ISRFUNC void isrDefaultPortD(void);
+ISRFUNC void isrDefaultPortE(void);
+ISRFUNC void isrDefaultUsb();
+ISRFUNC void isrDefaultI2c0(void);
+ISRFUNC void isrDefaultI2c1(void);
+ISRFUNC void isrDefaultI2c2(void);
 
 //other defaults are externed in kinetis.h.
 

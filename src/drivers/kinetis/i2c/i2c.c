@@ -332,7 +332,7 @@ int i2cRead(uint8_t port, uint32_t length, uint8_t *buffer, uint32_t timeout) {
 	reg->C1.byte = I2C_C1_IICEN | I2C_C1_IICIE;
 	reg->S.byte  = I2C_S_IICIF | I2C_S_ARBL; //clear IRQ and ARBL flags (write 1)
     if(!state->slaveMode) {
-    	UNUSED uint8_t dummy = reg->DATA; //initiate receive
+    	UNUSED_SYMBOL uint8_t dummy = reg->DATA; //initiate receive
     }
 	printf("wait RX\r\n");
 
@@ -463,7 +463,7 @@ static void isrI2CStateTx(micron_i2c_state *state, i2c_regs_t *reg) {
 		else if(state->doRecv) {
 			state->state = MICRON_I2C_STATE_RX;
 			reg->C1.byte = I2C_C1_IICEN | I2C_C1_IICIE | I2C_C1_MST;
-			UNUSED uint8_t dummy = reg->DATA; //initiate receive
+			UNUSED_SYMBOL uint8_t dummy = reg->DATA; //initiate receive
 		}
 		else state->state = MICRON_I2C_STATE_IDLE;
 		//state->state = MICRON_I2C_STATE_WAIT;
@@ -492,7 +492,7 @@ static void isrI2CStateRx(micron_i2c_state *state, i2c_regs_t *reg) {
 		//XXX are 0-length reads ever used? if so, does this work?
 
 		reg->C1.byte = C1;
-		UNUSED uint8_t dummy = reg->DATA; //initiate receive
+		UNUSED_SYMBOL uint8_t dummy = reg->DATA; //initiate receive
 		if(left == 0) state->state = MICRON_I2C_STATE_IDLE;
 	}
 
@@ -520,7 +520,7 @@ static void isrI2CStateStop(micron_i2c_state *state, i2c_regs_t *reg) {
 	reg->C1.byte = I2C_C1_IICEN | I2C_C1_IICIE;
 	if(state->doRecv) {
 		state->state = MICRON_I2C_STATE_RX;
-		UNUSED uint8_t dummy = reg->DATA; //initiate receive
+		UNUSED_SYMBOL uint8_t dummy = reg->DATA; //initiate receive
 	}
 	else state->state = MICRON_I2C_STATE_IDLE;
 }

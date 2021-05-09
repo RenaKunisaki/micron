@@ -44,7 +44,7 @@ WEAK void isrUnused(void) {
 }
 
 //systick interrupt handler.
-ISR void isrDefaultSystick(void) {
+ISRFUNC void isrDefaultSystick(void) {
 	systick_millis_count++;
 }
 
@@ -52,7 +52,7 @@ ISR void isrDefaultSystick(void) {
 //GPIO interrupt handlers
 WEAK void isrPin(int pin) { isrUnused(); }
 
-ISR void isrDefaultPortA(void) {
+ISRFUNC void isrDefaultPortA(void) {
 	uint32_t isfr = PORTA_ISFR;
 	if(isfr & CORE_PIN3_BITMASK ) isrPin( 3);
 	if(isfr & CORE_PIN4_BITMASK ) isrPin( 4);
@@ -61,7 +61,7 @@ ISR void isrDefaultPortA(void) {
     PORTA_ISFR = isfr;
 }
 
-ISR void isrDefaultPortB(void) {
+ISRFUNC void isrDefaultPortB(void) {
 	uint32_t isfr = PORTB_ISFR;
 	if(isfr & CORE_PIN0_BITMASK ) isrPin( 0);
 	if(isfr & CORE_PIN1_BITMASK ) isrPin( 1);
@@ -74,7 +74,7 @@ ISR void isrDefaultPortB(void) {
     PORTB_ISFR = isfr;
 }
 
-ISR void isrDefaultPortC(void) {
+ISRFUNC void isrDefaultPortC(void) {
 	uint32_t isfr = PORTC_ISFR;
 	if(isfr & CORE_PIN9_BITMASK ) isrPin( 9);
 	if(isfr & CORE_PIN10_BITMASK) isrPin(10);
@@ -91,7 +91,7 @@ ISR void isrDefaultPortC(void) {
     PORTC_ISFR = isfr;
 }
 
-ISR void isrDefaultPortD(void) {
+ISRFUNC void isrDefaultPortD(void) {
 	uint32_t isfr = PORTD_ISFR;
 	if(isfr & CORE_PIN2_BITMASK ) isrPin( 2);
 	if(isfr & CORE_PIN5_BITMASK ) isrPin( 5);
@@ -104,7 +104,7 @@ ISR void isrDefaultPortD(void) {
     PORTD_ISFR = isfr;
 }
 
-ISR void isrDefaultPortE(void) {
+ISRFUNC void isrDefaultPortE(void) {
 	uint32_t isfr = PORTE_ISFR;
 	if(isfr & CORE_PIN26_BITMASK) isrPin(26);
 	if(isfr & CORE_PIN31_BITMASK) isrPin(31);
@@ -112,20 +112,20 @@ ISR void isrDefaultPortE(void) {
 }
 
 WEAK void isrI2C(int port) { isrUnused(); }
-ISR void isrDefaultI2c0(void) { isrI2C(0); }
-ISR void isrDefaultI2c1(void) { isrI2C(1); }
-ISR void isrDefaultI2c2(void) { isrI2C(2); } //XXX aren't there only two?
+ISRFUNC void isrDefaultI2c0(void) { isrI2C(0); }
+ISRFUNC void isrDefaultI2c1(void) { isrI2C(1); }
+ISRFUNC void isrDefaultI2c2(void) { isrI2C(2); } //XXX aren't there only two?
 
 WEAK void isrUartStatus(int port) { isrUnused(); }
-ISR void isrDefaultUart0Status(void) { isrUartStatus(0); }
-ISR void isrDefaultUart1Status(void) { isrUartStatus(1); }
-ISR void isrDefaultUart2Status(void) { isrUartStatus(2); }
-ISR void isrDefaultUart3Status(void) { isrUartStatus(3); }
-ISR void isrDefaultUart4Status(void) { isrUartStatus(4); }
-ISR void isrDefaultUart5Status(void) { isrUartStatus(5); }
+ISRFUNC void isrDefaultUart0Status(void) { isrUartStatus(0); }
+ISRFUNC void isrDefaultUart1Status(void) { isrUartStatus(1); }
+ISRFUNC void isrDefaultUart2Status(void) { isrUartStatus(2); }
+ISRFUNC void isrDefaultUart3Status(void) { isrUartStatus(3); }
+ISRFUNC void isrDefaultUart4Status(void) { isrUartStatus(4); }
+ISRFUNC void isrDefaultUart5Status(void) { isrUartStatus(5); }
 
 
-ISR void isrDefaultUsb() {
+ISRFUNC void isrDefaultUsb() {
 	uint8_t status;
 	while((status = USB0_ISTAT) & 0x9F) {                       //bit
 		if(status & USB_ISTAT_USBRST) { isrUsbReset(); break; } // 0

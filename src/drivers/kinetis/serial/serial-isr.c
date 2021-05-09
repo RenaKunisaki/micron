@@ -7,7 +7,7 @@
 #include <micron.h>
 
 //called from default UART ISRs to handle receiving
-void uart_isr_rx_default(micron_uart_state *uart, KINETISK_UART_t *regs) {
+void uart_isr_rx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
 	uint8_t avail = regs->RCFIFO;
 	if (avail == 0) { //Rx FIFO empty
 		/* The only way to clear the IDLE interrupt flag is
@@ -17,7 +17,7 @@ void uart_isr_rx_default(micron_uart_state *uart, KINETISK_UART_t *regs) {
 		 * Freescale reads this, what a poor design!  There
 		 * write should be a write-1-to-clear for IDLE.
 		 */
-		UNUSED uint8_t dummy = regs->D;
+		UNUSED_SYMBOL uint8_t dummy = regs->D;
 		/* flushing the fifo recovers from the underrun,
 		 * but there's a possible race condition where a
 		 * new character could be received between reading
@@ -45,7 +45,7 @@ void uart_isr_rx_default(micron_uart_state *uart, KINETISK_UART_t *regs) {
 	}
 }
 
-static void uart_isr_tx_default(micron_uart_state *uart, KINETISK_UART_t *regs) {
+static void uart_isr_tx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
     if(uart->txbuf.head == uart->txbuf.tail) {
         //we don't have any more to send.
         if(regs->S1 & UART_S1_TC) { //last char has finished sending.
@@ -78,10 +78,10 @@ static void uart_isr_tx_default(micron_uart_state *uart, KINETISK_UART_t *regs) 
     }
 }
 
-void uart_isr_rx(micron_uart_state *uart, KINETISK_UART_t *regs)
+void uart_isr_rx(MicronUartState *uart, KINETISK_UART_t *regs)
     WEAK ALIAS("uart_isr_rx_default");
 
-void uart_isr_tx(micron_uart_state *uart, KINETISK_UART_t *regs)
+void uart_isr_tx(MicronUartState *uart, KINETISK_UART_t *regs)
     WEAK ALIAS("uart_isr_tx_default");
 
 //called from default UART ISRs
@@ -96,7 +96,7 @@ void isrUartStatus(int port) {
 	//  RxD pin active edge            UART_S2_RXEDGIF
     //  see UARTx_BDH and UARTx_BDL for the last one.
     irqDisable(); //avoid race condition (see uart_isr_rx_default)
-    micron_uart_state *uart = uart_state[port];
+    MicronUartState *uart = _uartState[port];
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
     //disable all interrupts while we handle them.
     //leave transmitter and receiver enabled.

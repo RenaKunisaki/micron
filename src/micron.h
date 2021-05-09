@@ -44,6 +44,8 @@ extern unsigned long _estack;
 #include "hw/teensy30.h"
 #elif defined(BOARD_TYPE_TEENSY31)
 #include "hw/teensy31.h"
+#elif defined(BOARD_TYPE_TEENSY41)
+#include "hw/teensy41.h"
 #else
 #error No valid BOARD_TYPE_* defined
 #endif
@@ -52,7 +54,12 @@ extern unsigned long _estack;
 #include "errors.h"
 #include "string.h"
 #include "libs/math.h"
-#include "drivers/kinetis/main.h"
+#include "drivers/hal/main.h"
+#if defined(__IMXRT1062__)
+    #include "drivers/imx/imxrt.h"
+#elif defined(__MK20DX128__) || defined(__MK20DX256__)
+    #include "drivers/kinetis/main.h"
+#endif
 #include "libs/io/io.h"
 #include "libs/libc/libc.h"
 

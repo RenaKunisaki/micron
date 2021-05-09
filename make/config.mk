@@ -29,7 +29,8 @@ endif
 CFLAGS ?= -mcpu=$(CPU) -mthumb -MMD -std=c++14 -I$(LIBDIR)/src -I$(SRCDIR) \
 	-Wall -O$(OPTIMIZE) $(DEBUG) \
 	-fno-common -felide-constructors -ffunction-sections -fdata-sections \
-	-DF_CPU=$(F_CPU) -DCPU_BITS=$(CPU_BITS) -D$(MCUDEF) -DBOARD_TYPE_$(BOARD_TYPE) $(DEFS)
+	-DF_CPU=$(F_CPU) -DCPU_BITS=$(CPU_BITS) -D$(MCUDEF) \
+	-DBOARD_TYPE_$(BOARD_TYPE) -DMCU_BASE_$(MCU_BASE) $(DEFS)
 
 
 # Assembler settings

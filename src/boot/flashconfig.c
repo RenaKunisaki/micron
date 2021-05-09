@@ -25,7 +25,7 @@
 	extern "C" {
 #endif
 
-SECTION(".flashconfig") USED const struct {
+SECTION(".flashconfig") USED_SYMBOL const struct {
 	uint8_t KEY[8]; //secret Backdoor Key that can be used (when enabled in
 		//FSEC) to reset flash security settings, if using those.
 	uint8_t FPROT[4]; //Program Flash Protection bytes

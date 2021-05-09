@@ -28,7 +28,8 @@ LINK=$(CC) $1 $(LDFLAGS) -o $2
 BIN2O=$(Q)bin2o $1 $2 $3
 
 # function PROGRAM(file) - uploads file to MCU
-PROGRAM=$(Q)teensy_loader_cli -w -s -v -mmcu=$(MCU) --device=$(USB_VID):$(USB_PID) $1
+#PROGRAM=$(Q)teensy_loader_cli -w -s -v -mmcu=$(MCU) --device=$(USB_VID):$(USB_PID) $1
+PROGRAM=$(Q)teensy_loader_cli -w -s -v -mmcu=$(MCU) $1
 
 # function FIND(path, pattern)
 # find specified pattern in specified path and subdirs.

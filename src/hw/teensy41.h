@@ -1,10 +1,10 @@
 //Teensy 4.1
 
 //Memory
-#define FLASH_SIZE 8388608 //bytes
+#define FLASH_SIZE 8126464 //bytes
 #define RAM_START 0x1C000000
 #define RAM_SIZE 1048576 //bytes
-#define EEPROM_SIZE 4096 //bytes
+#define EEPROM_SIZE 4284 //bytes
 
 //UART
 #define NUM_UART 8
@@ -42,79 +42,7 @@
 
 //NVIC/IRQ
 #define NVIC_BASE ((volatile uint32_t*)0xE000E100)
-enum IRQ_NUMBER_t {
-    IRQ_DMA_CH0 =		0,
-	IRQ_DMA_CH1 =		1,
-	IRQ_DMA_CH2 =		2,
-	IRQ_DMA_CH3 =		3,
-	IRQ_DMA_CH4 =		4,
-	IRQ_DMA_CH5 =		5,
-	IRQ_DMA_CH6 =		6,
-	IRQ_DMA_CH7 =		7,
-	IRQ_DMA_CH8 =		8,
-	IRQ_DMA_CH9 =		9,
-	IRQ_DMA_CH10 =		10,
-	IRQ_DMA_CH11 =		11,
-	IRQ_DMA_CH12 =		12,
-	IRQ_DMA_CH13 =		13,
-	IRQ_DMA_CH14 =		14,
-	IRQ_DMA_CH15 =		15,
-	IRQ_DMA_ERROR =		16,
-	IRQ_FTFL_COMPLETE =	18,
-	IRQ_FTFL_COLLISION =	19,
-	IRQ_LOW_VOLTAGE =	20,
-	IRQ_LLWU =		21,
-	IRQ_WDOG =		22,
-	IRQ_I2C0 =		24,
-	IRQ_I2C1 =		25,
-	IRQ_SPI0 =		26,
-	IRQ_SPI1 =		27,
-	IRQ_CAN_MESSAGE =	29,
-	IRQ_CAN_BUS_OFF =	30,
-	IRQ_CAN_ERROR =		31,
-	IRQ_CAN_TX_WARN =	32,
-	IRQ_CAN_RX_WARN =	33,
-	IRQ_CAN_WAKEUP =	34,
-	IRQ_I2S0_TX =		35,
-	IRQ_I2S0_RX =		36,
-	IRQ_UART0_LON =		44,
-	IRQ_UART0_STATUS =	45,
-	IRQ_UART0_ERROR =	46,
-	IRQ_UART1_STATUS =	47,
-	IRQ_UART1_ERROR =	48,
-	IRQ_UART2_STATUS =	49,
-	IRQ_UART2_ERROR =	50,
-	IRQ_ADC0 =		57,
-	IRQ_ADC1 =		58,
-	IRQ_CMP0 =		59,
-	IRQ_CMP1 =		60,
-	IRQ_CMP2 =		61,
-	IRQ_FTM0 =		62,
-	IRQ_FTM1 =		63,
-	IRQ_FTM2 =		64,
-	IRQ_CMT =		65,
-	IRQ_RTC_ALARM =		66,
-	IRQ_RTC_SECOND =	67,
-	IRQ_PIT_CH0 =		68,
-	IRQ_PIT_CH1 =		69,
-	IRQ_PIT_CH2 =		70,
-	IRQ_PIT_CH3 =		71,
-	IRQ_PDB =		72,
-	IRQ_USBOTG =		73,
-	IRQ_USBDCD =		74,
-	IRQ_DAC0 =		81,
-	IRQ_TSI =		83,
-	IRQ_MCG =		84,
-	IRQ_LPTMR =		85,
-	IRQ_PORTA =		87,
-	IRQ_PORTB =		88,
-	IRQ_PORTC =		89,
-	IRQ_PORTD =		90,
-	IRQ_PORTE =		91,
-	IRQ_SOFTWARE =		94
-};
-#define NVIC_NUM_INTERRUPTS	95
-#define DMA_NUM_CHANNELS	16
+
 #define KINETISK_UART0
 #define KINETISK_UART0_FIFO
 #define KINETISK_UART1
@@ -123,11 +51,11 @@ enum IRQ_NUMBER_t {
 
 //GPIO
 //Number of pins of each type available.
-#define CORE_NUM_TOTAL_PINS     34
-#define CORE_NUM_DIGITAL        34
-#define CORE_NUM_INTERRUPT      34
-#define CORE_NUM_ANALOG         21
-#define CORE_NUM_PWM            12
+#define CORE_NUM_TOTAL_PINS     55
+#define CORE_NUM_DIGITAL        55
+#define CORE_NUM_INTERRUPT      55
+#define CORE_NUM_ANALOG         18
+#define CORE_NUM_PWM            31
 
 //Converts an address and bit index of a register in the GPIO region to the
 //corresponding single-bit (bitband) register address.

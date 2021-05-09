@@ -1,22 +1,27 @@
 //UART serial functions.
-//This is the public API. See also serial-isr.c for the
-//behind-the-scenes interrupt handlers.
 
 #ifdef __cplusplus
 	extern "C" {
 #endif
 #include <micron.h>
 
-static const uint8_t uart_tx_pin[] = {UART0_TX_PIN, UART1_TX_PIN, UART2_TX_PIN};
-static const uint8_t uart_rx_pin[] = {UART0_RX_PIN, UART1_RX_PIN, UART2_RX_PIN};
 WEAK uint8_t uart_interrupt_priority = 64; //0 = highest priority, 255 = lowest
-SECTION(".bss") micron_uart_state *uart_state[NUM_UART];
+
+static const uint8_t uart_tx_pin[] = {
+    UART0_TX_PIN, UART1_TX_PIN, UART2_TX_PIN, //XXX more
+};
+static const uint8_t uart_rx_pin[] = {
+    UART0_RX_PIN, UART1_RX_PIN, UART2_RX_PIN,
+};
+
 
 /** Sets up the baud rate for a UART.
  *  serialInit() calls this, so normally you'd never need to call it yourself,
  *  unless you've changed the clock speed.
  */
-void serialSetBaud(uint8_t port, uint32_t baud) {
+int kinetis_serialSetBaud(uint32_t port, uint32_t baud) {
+    if(port >= NUM_UART) return -ENODEV; //No such device
+
 	uint32_t divisor;
 	//UART0 and UART1 modules operate from the core/system clock, which provides
 	//higher performance level for these modules. All other UART modules
@@ -29,6 +34,7 @@ void serialSetBaud(uint8_t port, uint32_t baud) {
 	regs->BDH = (divisor >> 13) & 0x1F;
 	regs->BDL = (divisor >>  5) & 0xFF;
 	regs->C4  =  divisor        & 0x1F;
+    return 0;
 }
 
 
@@ -37,28 +43,9 @@ void serialSetBaud(uint8_t port, uint32_t baud) {
  *  This function takes care of turning on the UART module, preparing buffers,
  *  and setting up interrupts.
  */
-int serialInit(uint8_t port, uint32_t baud) {
-	if(port >= NUM_UART) return -ENODEV; //No such device
-	if(uart_state[port] != NULL) return 0; //already init
-
-	//init state
-	uart_state[port] = (micron_uart_state*)malloc(sizeof(micron_uart_state));
-	if(uart_state[port] == NULL) return -ENOMEM;
-	uart_state[port]->tx_pin = uart_tx_pin[port];
-	uart_state[port]->rx_pin = uart_rx_pin[port];
-	uart_state[port]->transmitting = 0;
-	uart_state[port]->txbuf.head   = 0;
-	uart_state[port]->txbuf.tail   = 0;
-	uart_state[port]->rxbuf.head   = 0;
-	uart_state[port]->rxbuf.tail   = 0;
-	uart_state[port]->txCnt        = 0;
-	uart_state[port]->rxCnt        = 0;
-    //debug
-	//memset((void*)uart_state[port]->txbuf.data, 0xAA, UART_TX_BUFSIZE);
-	//memset((void*)uart_state[port]->rxbuf.data, 0xAA, UART_RX_BUFSIZE);
-
-	//enable clock for UART module.
-	SIM_SCGC4 |= (SIM_SCGC4_UART0 << port);
+int kinetis_serialInit(uint32_t port, uint32_t baud) {
+    _uartState[port]->tx_pin = uart_tx_pin[port];
+	_uartState[port]->rx_pin = uart_rx_pin[port];
 
 	//set up pins
 	setPinMode(uart_tx_pin[port],
@@ -100,15 +87,12 @@ int serialInit(uint8_t port, uint32_t baud) {
 
 /** Shut down specified UART, if it's enabled.
  */
-void serialShutdown(uint8_t port) {
-	if(port >= NUM_UART) return;
-	if(uart_state[port] == NULL) return; //already shutdown
+int kinetis_serialShutdown(uint32_t port) {
 	NVIC_DISABLE_IRQ(IRQ_UART0_STATUS + (port*2));
 
 	//disable clock for UART module. XXX use bitband register here
 	SIM_SCGC4 &= ~(SIM_SCGC4_UART0 << port);
-	free(uart_state[port]);
-	uart_state[port] = NULL;
+    return 0;
 }
 
 
@@ -119,13 +103,8 @@ void serialShutdown(uint8_t port) {
  *  A return of less than len (especially zero) indicates the transmit buffer is
  *  full and you might want to wait for an interrupt before retrying.
  */
-int serialSend(uint8_t port, const void *data, uint32_t len) {
-	if(len == 0) return 0;
-	if(port >= NUM_UART) return -ENODEV;
-
-	micron_uart_state *uart = uart_state[port];
-	if(uart == NULL) return -EBADFD;
-    irqDisable();
+int kinetis_serialSend(uint32_t port, const void *data, uint32_t len) {
+	MicronUartState *uart = _uartState[port];
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
 
 	digitalWrite(uart->tx_pin, 1); //tx assert
@@ -165,7 +144,7 @@ int serialSend(uint8_t port, const void *data, uint32_t len) {
 		head = next;
 	}
 	uart->txbuf.head = head;
-    #else
+    #else //XXX what is this?
     while(i < len) {
         while(regs->TCFIFO) idle();
         //avail = fifoSize - regs->TCFIFO;
@@ -176,7 +155,6 @@ int serialSend(uint8_t port, const void *data, uint32_t len) {
     #endif
 
 	regs->C2 = UART_C2_TX_ACTIVE; //enable transmit interrupt
-    irqEnable();
 	return i; //return number of bytes we sent
 }
 
@@ -185,12 +163,8 @@ int serialSend(uint8_t port, const void *data, uint32_t len) {
  *  On success, returns number of bytes received (which could be zero).
  *  On failure, returns a negative error code.
  */
-int serialReceive(uint8_t port, char *data, uint32_t len) {
-	if(port >= NUM_UART) return -ENODEV;
-
-	micron_uart_state *uart = uart_state[port];
-	if(uart == NULL) return -EBADFD;
-    irqDisable();
+int kinetis_serialReceive(uint32_t port, char *data, uint32_t len) {
+	MicronUartState *uart = _uartState[port];
 
     #if 0
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
@@ -220,7 +194,6 @@ int serialReceive(uint8_t port, char *data, uint32_t len) {
 	}
 
 	regs->C2 |= (UART_C2_RIE | UART_C2_ILIE); //re-enable Rx interrupt
-    //irqEnable();
     #else
 
     unsigned int i = 0;
@@ -230,19 +203,15 @@ int serialReceive(uint8_t port, char *data, uint32_t len) {
     }
 
     #endif
-    irqEnable();
-	return i;
+    return i;
 }
 
 
 /** Wait for specified UART to be finished transmitting.
  */
-void serialFlush(uint8_t port) {
-	if(port >= NUM_UART) return;
-	micron_uart_state *uart = uart_state[port];
-	if(uart == NULL) return;
-
-	if(irqCurrentISR() == 0 && irqEnabled()) {
+int kinetis_serialFlush(uint32_t port) {
+    MicronUartState *uart = _uartState[port];
+    if(irqCurrentISR() == 0 && irqEnabled()) {
 		//if we're not in an ISR already, we can wait for one.
 		while(uart->transmitting) irqWait();
 	}
@@ -250,74 +219,22 @@ void serialFlush(uint8_t port) {
 		//otherwise, we must busy-wait and run the handler manually.
 		while(uart->transmitting) isrUartStatus(port);
 	}
+    return 0;
 }
 
 
 /** Discard all buffered input from specified UART.
  */
-void serialClear(uint8_t port) {
-	if(port >= NUM_UART) return;
-	micron_uart_state *uart = uart_state[port];
-	if(uart == NULL) return;
-	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
+int kinetis_serialClear(uint32_t port) {
+	MicronUartState *uart = _uartState[port];
+    KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
 
 	regs->C2 &= ~(UART_C2_RE | UART_C2_RIE | UART_C2_ILIE);
 	regs->CFIFO = UART_CFIFO_RXFLUSH;
 	uart->rxbuf.head = uart->rxbuf.tail;
 	regs->C2 |=  (UART_C2_RE | UART_C2_RIE | UART_C2_ILIE);
+    return 0;
 }
-
-
-int serialPutchr(uint8_t port, char c) {
-	int r;
-	do {
-		r = serialSend(port, &c, 1);
-		if(r == 0) irqWait();
-	} while(r <= 0);
-	return r;
-}
-
-int serialPuts(uint8_t port, const char *str) {
-	int r;
-	int len = strlen(str);
-	int slen = len; //for return value
-	//XXX any better way than using strlen?
-	//we could make this function mostly a duplicate of serialSend()
-	//with the addition of checking for null characters...
-	//also, standard puts() adds a line break.
-	do {
-		r = serialSend(port, str, len);
-		if(r < 0) return r;
-		if(r == 0) irqWait();
-		len -= r;
-		str += r;
-	} while(len > 0);
-	if(r >= 0) return slen;
-	return r;
-}
-
-int serialGetchr(uint8_t port) {
-	char c = 0;
-	int r = serialReceive(port, &c, 1);
-	if(r <= 0) return r;
-	return c;
-}
-
-int serialGets(uint8_t port, char *str, uint32_t len) {
-	//works a little different from standard gets() because that sucks anyway.
-	char chr;
-	uint32_t count = 0;
-	while(count < (len-1)) {
-		int r = serialReceive(port, &chr, 1); //XXX any better way?
-		if(r < 0) return r;
-		else if(r == 0) irqWait();
-		else if(chr == '\r' || chr == '\n') break;
-		else str[count++] = chr;
-	}
-	str[count] = '\0';
-	return count;
-}
-
 
 #ifdef __cplusplus
 	} //extern "C"

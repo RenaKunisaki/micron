@@ -54,7 +54,7 @@
  */
 #define DELAY_CYCLES (F_CPU / 3000000)
 #if 1
-USED static int dummy;
+USED_SYMBOL static int dummy;
 #define delayUS(n) __asm__ volatile( \
 	"1: subs %0, #1       \n" \
 	"bne 1b               \n" \

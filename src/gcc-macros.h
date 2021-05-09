@@ -33,9 +33,9 @@
 		#define INLINE inline __attribute__((always_inline))
 	#endif
 
-	#ifndef ISR
+	#ifndef ISRFUNC
 		//Function is an Interrupt Service Routine.
-		#define ISR __attribute__((interrupt))
+		#define ISRFUNC __attribute__((interrupt))
 	#endif
 
 	#ifndef MALLOC
@@ -95,15 +95,15 @@
 		#define SECTION(x) __attribute__((section(x)))
 	#endif
 
-	#ifndef UNUSED
+	#ifndef UNUSED_SYMBOL
 		//This symbol may go unused. Don't warn if it does.
-		#define UNUSED __attribute__((__unused__))
+		#define UNUSED_SYMBOL __attribute__((__unused__))
 	#endif
 
-	#ifndef USED
+	#ifndef USED_SYMBOL
 		//This symbol is used, even if it appears not to be.
 		//Do not optimize it away.
-		#define USED __attribute__((__used__))
+		#define USED_SYMBOL __attribute__((__used__))
 	#endif
 
 	#ifndef WEAK
