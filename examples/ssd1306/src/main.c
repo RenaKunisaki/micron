@@ -8,12 +8,18 @@ uint8_t vram[(128 * 64) / 8];
 SSD1306_State display;
 
 void blink(int n) {
-    while(--n) {
+    setPinAsOutput(13); //onboard LED
+    while(n--) {
         digitalWrite(13, 1);
         delayMS(250);
         digitalWrite(13, 0);
         delayMS(250);
     }
+}
+
+void fail(int code) {
+    blink(code);
+    osBootloader();
 }
 
 int main() {
@@ -30,25 +36,29 @@ int main() {
 	stdout = openSerial(0, &err);
 	stderr = stdout;
     if(err) {
-        setPinAsOutput(13); //onboard LED
-        blink(3);
-        return err;
+        //not using 1 or 2 because those could be mistaken
+        //for normal behaviour or bad connection
+        fail(3);
     }
 
-    //init I2C
-    err = i2cInit(0, -1);
-    if(err) {
-        printf("I2C init fail %d\n", err);
-        blink(4);
-        return err;
-    }
+    while(1) {
+        //init I2C and display
+        err = i2cInit(0, -1);
+        if(err) {
+            printf("I2C init fail %d\r\n", err);
+            blink(4);
+        }
+        else err = ssd1306_init(&display);
+        if(err) {
+            printf("Display init fail %d\r\n", err);
+            blink(5);
+        }
+        else break;
 
-    err = ssd1306_init(&display);
-    if(err) {
-        printf("Display init fail %d\n", err);
-        blink(5);
-        return err;
+        i2cShutdown(0);
+        delayMS(1000);
     }
+    printf("Init OK\r\n");
 
     ssd1306_setPower(&display, 1);
     ssd1306_setTestMode(&display, 1);
