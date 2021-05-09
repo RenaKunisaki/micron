@@ -1,5 +1,5 @@
-#ifndef _MICRON_CRC_H_
-#define _MICRON_CRC_H_
+#ifndef _MICRON_KINETIS_CRC_H_
+#define _MICRON_KINETIS_CRC_H_
 
 #ifdef __cplusplus
 	extern "C" {
@@ -46,21 +46,21 @@ typedef enum {
 } CRC_TYPE;
 
 //crc.c
-uint32_t crc32Cont(uint32_t crc, const void *buf, size_t size);
-uint32_t crc32(const void *buf, size_t size);
-void crcHwInitCustom(uint32_t flags, uint32_t poly, uint32_t seed);
-void crcHwInit(CRC_TYPE type);
-void crcHwShutdown();
-void crcHwInput8(uint8_t data);
-void crcHwInput16(uint16_t data);
-void crcHwInput32(uint32_t data);
-uint8_t crcHwEnd8();
-uint16_t crcHwEnd16();
-uint32_t crcHwEnd32();
-void crcTest();
+uint32_t kinetis_crc32Cont(uint32_t crc, const void *buf, size_t size);
+uint32_t kinetis_crc32(const void *buf, size_t size);
+int kinetis_crcHwInitCustom(uint32_t flags, uint32_t poly, uint32_t seed);
+int kinetis_crcHwInit(CRC_TYPE type);
+int kinetis_crcHwShutdown();
+int kinetis_crcHwInput8(uint8_t data);
+int kinetis_crcHwInput16(uint16_t data);
+int kinetis_crcHwInput32(uint32_t data);
+int kinetis_crcHwEnd8(uint8_t *out);
+int kinetis_crcHwEnd16(uint16_t *out);
+int kinetis_crcHwEnd32(uint32_t *out);
+int kinetis_crcTest(void);
 
 #ifdef __cplusplus
 	} //extern "C"
 #endif
 
-#endif //_MICRON_CRC_H_
+#endif //_MICRON_KINETIS_CRC_H_

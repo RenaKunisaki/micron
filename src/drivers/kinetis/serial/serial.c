@@ -54,7 +54,7 @@ int kinetis_serialInit(uint32_t port, uint32_t baud) {
 
 	//set up module
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
-	serialSetBaud(port, baud);
+	kinetis_serialSetBaud(port, baud);
 	regs->C1 = UART_C1_ILT; //idle character bit count starts
         //after stop bit
     regs->PFIFO = UART_PFIFO_TXFE | UART_PFIFO_RXFE; //FIFOs on

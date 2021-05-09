@@ -29,7 +29,7 @@
 #define NUM_SPI 1
 
 //CRC
-#define HAVE_HW_CRC 1
+#define NUM_HW_CRC 1
 
 //RTC
 //RTC prescalar counts up to this per second
