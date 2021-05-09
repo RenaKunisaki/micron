@@ -113,8 +113,8 @@ int i2cInit(uint8_t port, int address) {
 	reg->SMB.byte = 0;
 
 	//set up pins
-	setPinMode(scl, i2c_pin_mode, OUTPUT);
-	setPinMode(sda, i2c_pin_mode, OUTPUT);
+    kinetis_internalSetPinMode(scl, i2c_pin_mode, PIN_DIR_OUTPUT);
+    kinetis_internalSetPinMode(sda, i2c_pin_mode, PIN_DIR_OUTPUT);
 
 	//set up module
     //HACK: change clock and filter settings for long wires

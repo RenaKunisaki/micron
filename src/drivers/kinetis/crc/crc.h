@@ -32,19 +32,6 @@
 #define CRC_SIZE_16 ((uint32_t)0)       //compute 16-bit CRC
 #define CRC_SIZE_32 ((uint32_t)BIT(24)) //compute 32-bit CRC
 
-typedef enum {
-	CRC_TYPE_CRC32 = 0,
-	CRC_TYPE_BZIP2,
-	CRC_TYPE_CRC32C,
-	CRC_TYPE_CRC32D,
-	CRC_TYPE_MPEG2,
-	CRC_TYPE_CKSUM,
-	CRC_TYPE_CRC32Q,
-	CRC_TYPE_JAMCRC,
-	CRC_TYPE_XFER,
-	NUM_CRC_TYPES
-} CRC_TYPE;
-
 //crc.c
 uint32_t kinetis_crc32Cont(uint32_t crc, const void *buf, size_t size);
 uint32_t kinetis_crc32(const void *buf, size_t size);

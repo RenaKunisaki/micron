@@ -2,5 +2,7 @@
 #define _MICRON_HAL_MAIN_H_
 
 #include "serial/serial.h"
+#include "gpio/gpio.h"
+#include "crc/crc.h"
 
 #endif //_MICRON_HAL_MAIN_H_

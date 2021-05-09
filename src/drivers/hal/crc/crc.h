@@ -29,9 +29,9 @@ int crcHwShutdown(uint32_t port);
 int crcHwInput8(uint32_t port, uint8_t data);
 int crcHwInput16(uint32_t port, uint16_t data);
 int crcHwInput32(uint32_t port, uint32_t data);
-uint8_t crcHwEnd8(uint32_t port);
-uint16_t crcHwEnd16(uint32_t port);
-uint32_t crcHwEnd32(uint32_t port);
+int crcHwEnd8(uint32_t port, uint8_t *out);
+int crcHwEnd16(uint32_t port, uint16_t *out);
+int crcHwEnd32(uint32_t port, uint32_t *out);
 int crcTest(void);
 
 #ifdef __cplusplus

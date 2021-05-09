@@ -37,7 +37,7 @@ int spiBegin(uint8_t pin, uint32_t speed, uint32_t mode) {
         case 21: pcs = 0x08; break; //PTD6
         case 22: pcs = 0x08; break; //PTC1
         case 15: pcs = 0x10; break; //PTC0
-        default: pcs = 0; setPinAsOutput(pin);
+        default: pcs = 0; gpioSetPinMode(pin, PIN_MODE_OUTPUT);
     }
 
     reg = (volatile uint32_t*)&PDOR(pin);

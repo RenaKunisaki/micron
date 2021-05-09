@@ -171,6 +171,7 @@ int crcTest(void) {
      *  @return 0 on success, or negative error code.
      *  @note May print diagnostics to stdout/stderr.
      */
+    //XXX test software functions
     #if defined(MCU_BASE_KINETIS)
         return kinetis_crcTest();
 

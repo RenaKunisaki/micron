@@ -52,10 +52,10 @@
 //GPIO
 //Number of pins of each type available.
 #define CORE_NUM_TOTAL_PINS     55
-#define CORE_NUM_DIGITAL        55
-#define CORE_NUM_INTERRUPT      55
-#define CORE_NUM_ANALOG         18
-#define CORE_NUM_PWM            31
+#define CORE_NUM_DIGITAL        55 //# digital GPIO
+#define CORE_NUM_INTERRUPT      55 //# GPIO with interrupts
+#define CORE_NUM_ANALOG         18 //# analog GPIO
+#define CORE_NUM_PWM            31 //# PWM GPIO
 
 //Converts an address and bit index of a register in the GPIO region to the
 //corresponding single-bit (bitband) register address.

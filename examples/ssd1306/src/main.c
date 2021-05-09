@@ -8,11 +8,11 @@ uint8_t vram[(128 * 64) / 8];
 SSD1306_State display;
 
 void blink(int n) {
-    setPinAsOutput(13); //onboard LED
+    gpioSetPinMode(13, PIN_MODE_OUTPUT); //onboard LED
     while(n--) {
-        digitalWrite(13, 1);
+        gpioSetPinOutput(13, 1);
         delayMS(250);
-        digitalWrite(13, 0);
+        gpioSetPinOutput(13, 0);
         delayMS(250);
     }
 }
@@ -29,11 +29,16 @@ int main() {
     display.display.width = 128;
     display.display.height = 64;
 
+    gpioSetPinMode(13, PIN_MODE_OUTPUT); //onboard LED
+    blink(1);
+
     //init serial
     int err = 0;
     //print startup message
 	serialInit(0, 460800);
+    blink(1);
 	stdout = openSerial(0, &err);
+    blink(1);
 	stderr = stdout;
     if(err) {
         //not using 1 or 2 because those could be mistaken

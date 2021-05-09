@@ -8,10 +8,8 @@
 	extern "C" {
 #endif
 
-#define LOW    0
-#define HIGH   1
-#define INPUT  0
-#define OUTPUT 1
+#define PIN_DIR_INPUT  0
+#define PIN_DIR_OUTPUT 1
 
 #include "pin_bits.h"
 
@@ -70,14 +68,19 @@ extern volatile uint32_t* const pinConfigAddr[];
 #define PCR_INPUT PCR_MUX(1)
 
 
-//Fast inline functions to set pin I/O modes.
-//These use __builtin_constant_p() to choose a faster path when possible.
-//The compiler is able to condense the entire function body into a single
-//inline statement at compile time, so this is a lot more efficient than
-//it looks.
-INLINE void setPinMode(int pin, int mode, int direction) {
-	uint32_t m=mode, d=direction; //to fit statements on one line
-	if(__builtin_constant_p(pin)) {
+//Internal functions, Kinetis-specific.
+INLINE void kinetis_internalSetPinMode(uint32_t pin, uint32_t m, uint32_t d) {
+    /** Set pin mode and direction registers.
+     *  @param pin Which pin.
+     *  @param m Value for PIN_CONTROL_REG (mode) register.
+     *  @param d Value for PIN_DIRECTION_REG register.
+     */
+    //Fast inline functions to set pin I/O modes.
+    //These use __builtin_constant_p() to choose a faster path when possible.
+    //The compiler is able to condense the entire function body into a single
+    //inline statement at compile time, so this is a lot more efficient than
+    //it looks.
+    if(__builtin_constant_p(pin)) {
 		//pin is a constant, so gcc is able to optimize all this down
 		//to a single statement at compile time.
 		if      (pin ==  0) { CORE_PIN0_PCR  = m;  CORE_PIN0_PDDR  = d; }
@@ -126,33 +129,76 @@ INLINE void setPinMode(int pin, int mode, int direction) {
 }
 
 
-INLINE void setPinAsInput(int pin) {
-	setPinMode(pin, PCR_INPUT, INPUT);
+
+INLINE int kinetis_gpioSetPinMode(uint32_t pin, PinMode mode) {
+	uint32_t m, d; //to fit statements on one line
+    switch(mode) {
+        case PIN_MODE_DISABLED:
+            m=PCR_OPEN_DRAIN;
+            d=PIN_DIR_INPUT;
+            break;
+
+        case PIN_MODE_INPUT:
+            m=PCR_INPUT;
+            d=PIN_DIR_INPUT;
+            break;
+
+        case PIN_MODE_INPUT_PULLUP:
+            m=PCR_INPUT | PCR_PULLUP;
+            d=PIN_DIR_INPUT;
+            break;
+
+        case PIN_MODE_INPUT_PULLDOWN:
+            m=PCR_INPUT | PCR_PULLDOWN;
+            d=PIN_DIR_INPUT;
+            break;
+
+        case PIN_MODE_OUTPUT:
+            m=PCR_OUTPUT;
+            d=PIN_DIR_OUTPUT;
+            break;
+
+        default: return -EINVAL;
+    }
+    kinetis_internalSetPinMode(pin, m, d);
+    return 0;
 }
 
-INLINE void setPinAsInputPullup(int pin) {
-	setPinMode(pin, PCR_INPUT | PCR_PULLUP, INPUT);
+INLINE int kinetis_gpioSetPinSlewRate(uint32_t pin, PinSlewRate rate) {
+    switch(rate) {
+        case PIN_SLEW_SLOW:
+            PIN_CONTROL_REG(pin) |= PCR_SLEW_SLOW;
+            return 0;
+
+        case PIN_SLEW_FAST:
+            PIN_CONTROL_REG(pin) &= ~PCR_SLEW_SLOW;
+            return 0;
+
+        default: return -ENOPROTOOPT; //Protocol not available
+    }
 }
 
-INLINE void setPinAsInputPulldown(int pin) {
-	setPinMode(pin, PCR_INPUT | PCR_PULLDOWN, INPUT);
+INLINE int kinetis_gpioSetPinDriveStrength(uint32_t pin, PinDriveStrength strength) {
+    switch(strength) {
+        case PIN_DRIVE_STRENGTH_HIGH:
+            PIN_CONTROL_REG(pin) |= PCR_DRIVE_STRENGTH_HI;
+            return 0;
+
+        case PIN_DRIVE_STRENGTH_LOW:
+            PIN_CONTROL_REG(pin) &= ~PCR_DRIVE_STRENGTH_HI;
+            return 0;
+
+        default: return -ENOPROTOOPT; //Protocol not available
+    }
 }
 
-INLINE void setPinAsOutput(int pin) {
-	setPinMode(pin, PCR_OUTPUT, OUTPUT);
-}
-
-INLINE void setPinAs(int pin, int mode) {
-	if(mode == INPUT) setPinAsInput(pin);
-	else setPinAsOutput(pin);
-}
 
 //Set pin interrupt mode.
 //Mode is one of PCR_IRQ_* or PCR_DMA_*.
 //Note that you also need to enable/disable the corresponding IRQ_PORT*.
 //The default handlers for those IRQs call `void isrPin(int pin)`;
 //the default isrPin() calls isrUnused().
-INLINE void setPinInterrupt(int pin, uint32_t mode) {
+INLINE void kinetis_setPinInterrupt(int pin, uint32_t mode) {
 	mode |= PCR_ISF; //clear interrupt flag if it's set (by writing 1 to it)
 	PIN_CONTROL_REG(pin) = (PIN_CONTROL_REG(pin) & ~PCR_IRQ_MASK) | mode;
 }
@@ -161,7 +207,7 @@ INLINE void setPinInterrupt(int pin, uint32_t mode) {
 //Fast digital pin write.
 //Copied from Teensy's digitalWriteFast() (but this version is using
 //bitband registers).
-INLINE void digitalWrite(uint8_t pin, int val) {
+INLINE int kinetis_gpioSetPinOutput(uint8_t pin, int val) {
 	uint8_t v = (val != 0); //Ensure val is either 0 or 1.
 		//XXX could this be further optimized using
 		//__builtin_constant_p(val)? The original Teensy libs check val and have
@@ -204,13 +250,14 @@ INLINE void digitalWrite(uint8_t pin, int val) {
 		else if (pin == 33) CORE_PIN33_PDOR = v;
 	}
 	else PDOR(pin) = v;
+    return 0;
 }
 
 
 //Fast digital pin read.
 //Copied from Teensy's digitalReadFast() (but this version is using
 //bitband registers).
-INLINE volatile uint8_t digitalRead(uint8_t pin) {
+INLINE volatile int kinetis_gpioGetPinInput(uint8_t pin) {
 	if(__builtin_constant_p(pin)) {
 		if      (pin ==  0) return CORE_PIN0_PDIR;
 		else if (pin ==  1) return CORE_PIN1_PDIR;
@@ -246,7 +293,7 @@ INLINE volatile uint8_t digitalRead(uint8_t pin) {
 		else if (pin == 31) return CORE_PIN31_PDIR;
 		else if (pin == 32) return CORE_PIN32_PDIR;
 		else if (pin == 33) return CORE_PIN33_PDIR;
-		else return 0;
+		else return -ENODEV;
 	}
 	else return PDIR(pin);
 }

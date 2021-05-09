@@ -47,10 +47,14 @@ int kinetis_serialInit(uint32_t port, uint32_t baud) {
     _uartState[port]->tx_pin = uart_tx_pin[port];
 	_uartState[port]->rx_pin = uart_rx_pin[port];
 
+    //enable clock for UART module.
+	SIM_SCGC4 |= (SIM_SCGC4_UART0 << port);
+
 	//set up pins
-	setPinMode(uart_tx_pin[port],
-		PCR_DRIVE_STRENGTH_HI | PCR_SLEW_SLOW | PCR_MUX(3), OUTPUT);
-	setPinMode(uart_rx_pin[port], PCR_PULLUP | PCR_FILTER | PCR_MUX(3), INPUT);
+    kinetis_internalSetPinMode(uart_tx_pin[port],
+        PCR_DRIVE_STRENGTH_HI | PCR_SLEW_SLOW | PCR_MUX(3), PIN_DIR_OUTPUT);
+    kinetis_internalSetPinMode(uart_rx_pin[port],
+        PCR_PULLUP | PCR_FILTER | PCR_MUX(3), PIN_DIR_INPUT);
 
 	//set up module
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
