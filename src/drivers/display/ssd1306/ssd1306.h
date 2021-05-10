@@ -31,7 +31,8 @@ int ssd1306_setOffset(SSD1306_State *state, uint8_t offs);
 int ssd1306_setInvert(SSD1306_State *state, int on);
 int ssd1306_setHFlip(SSD1306_State *state, int on);
 int ssd1306_setVFlip(SSD1306_State *state, int on);
-int ssd1306_updatePartial(SSD1306_State *state, int xs, int ys, int width, int height);
+int ssd1306_updatePartial(SSD1306_State *state, int xs, int ys, int width,
+    int height);
 int ssd1306_update(SSD1306_State *state);
 
 #define SSD1306_PREFIX_CMD  0x00 //first byte of command packet
@@ -86,7 +87,8 @@ int ssd1306_update(SSD1306_State *state);
 #define SSD1306_SET_ADDRESSING_MODE(m) SSD1306_CMD_SET_ADDRESSING_MODE, (m)
 #define SSD1306_SET_ADDRESSING_HORIZONTAL SSD1306_SET_ADDRESSING_MODE(SSD1306_ADDRESSING_HORIZONTAL)
 #define SSD1306_SET_ADDRESSING_VERTICAL SSD1306_SET_ADDRESSING_MODE(SSD1306_ADDRESSING_VERTICAL)
-#define SSD1306_SET_ADDRESSING_PAGE SSD1306_SET_ADDRESSING_MODE(SSD1306_ADDRESSING_PAGE)
+#define SSD1306_SET_ADDRESSING_PAGE \
+    SSD1306_SET_ADDRESSING_MODE(SSD1306_ADDRESSING_PAGE)
 
 #define SSD1306_SET_COL_START(a) \
     SSD1306_CMD_SET_COL_START_LO | (((uint8_t)a) & 0x0F), \

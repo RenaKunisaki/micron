@@ -25,6 +25,8 @@ static const uint32_t i2c_pin_mode =
 	PCR_OPEN_DRAIN | PCR_SLEW_SLOW | PCR_DRIVE_STRENGTH_HI | PCR_MUX(2);
 WEAK uint8_t i2cInterruptPriority = 48; //0 = highest priority, 255 = lowest
 
+//XXX this is still a huge mess that needs cleanup and documentation
+
 int kinetis_i2cWaitForBus(uint8_t port, uint32_t timeout) {
     micronI2cState *state = i2cState[port];
     i2cRegs_t *reg = i2cRegs[port];

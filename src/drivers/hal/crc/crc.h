@@ -23,7 +23,7 @@ uint32_t crc32(const void *buf, size_t size);
 uint32_t crc32Cont(uint32_t crc, const void *buf, size_t size);
 
 //crc.c
-int crcHwInitCustom(uint32_t port, uint32_t flags, uint32_t poly, uint32_t seed);
+int crcHwInitCustom(uint32_t port, uint32_t flags, uint32_t poly,uint32_t seed);
 int crcHwInit(uint32_t port, CRC_TYPE type);
 int crcHwShutdown(uint32_t port);
 int crcHwInput8(uint32_t port, uint8_t data);

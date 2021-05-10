@@ -21,7 +21,8 @@ typedef enum {
 	INT_SVCall                   = 11, //A supervisor call exception
 	INT_DebugMonitor             = 12, //Debug Monitor
 	INT_Reserved13               = 13, //Reserved interrupt 13
-	INT_PendableSrvReq           = 14, //PendSV exception - request for system level service
+	INT_PendableSrvReq           = 14, //PendSV exception -
+        //request for system level service
 	INT_SysTick                  = 15, //SysTick Interrupt
 	INT_DMA0                     = 16, //DMA Channel 0 Transfer Complete
 	INT_DMA1                     = 17, //DMA Channel 1 Transfer Complete
@@ -85,9 +86,9 @@ typedef enum {
 	INT_CMP0                     = 75, //CMP0 interrupt
 	INT_CMP1                     = 76, //CMP1 interrupt
 	INT_CMP2                     = 77, //CMP2 interrupt
-	INT_FTM0                     = 78, //FTM0 fault, overflow and channels interrupt
-	INT_FTM1                     = 79, //FTM1 fault, overflow and channels interrupt
-	INT_FTM2                     = 80, //FTM2 fault, overflow and channels interrupt
+	INT_FTM0                     = 78, //FTM0 fault, overflow and channels intr
+	INT_FTM1                     = 79, //FTM1 fault, overflow and channels intr
+	INT_FTM2                     = 80, //FTM2 fault, overflow and channels intr
 	INT_CMT                      = 81, //CMT interrupt
 	INT_RTC                      = 82, //RTC interrupt
 	INT_RTC_Seconds              = 83, //RTC seconds interrupt

@@ -29,19 +29,27 @@ typedef struct MicronDisplayState {
 
 //1bpp.c
 int displaySetPixel1BPP(MicronDisplayState *state, int x, int y, uint32_t p);
-int displayDrawLineH1BPP(MicronDisplayState *state, int xs, int ys, int w, uint8_t p);
-int displayDrawLineV1BPP(MicronDisplayState *state, int xs, int ys, int h, uint8_t p);
+int displayDrawLineH1BPP(MicronDisplayState *state, int xs, int ys, int w,
+    uint8_t p);
+int displayDrawLineV1BPP(MicronDisplayState *state, int xs, int ys, int h,
+    uint8_t p);
 
 //display.c
-int displayUpdatePartial(MicronDisplayState *state, int xs, int ys, int width, int height);
+int displayUpdatePartial(MicronDisplayState *state, int xs, int ys, int width,
+    int height);
 int displayUpdate(MicronDisplayState *state);
 int displaySetPixel(MicronDisplayState *state, int x, int y, uint32_t p);
-int displayDrawRect(MicronDisplayState *state, int xs, int ys, int w, int h, uint32_t p);
-int displayFillRect(MicronDisplayState *state, int xs, int ys, int w, int h, uint32_t p);
+int displayDrawRect(MicronDisplayState *state, int xs, int ys, int w, int h,
+    uint32_t p);
+int displayFillRect(MicronDisplayState *state, int xs, int ys, int w, int h,
+    uint32_t p);
 
 //drawline.c
-int displayDrawLine(MicronDisplayState *state, int x1, int y1, int x2, int y2, uint32_t p);
+int displayDrawLine(MicronDisplayState *state, int x1, int y1, int x2, int y2,
+    uint32_t p);
 
 //drawtext.c
-int displayDrawChr(MicronDisplayState *state, const Font *font, int xpos, int ypos, int chr, uint32_t p);
-int displayDrawStr(MicronDisplayState *state, const Font *font, int xpos, int ypos, const char *str, uint32_t p);
+int displayDrawChr(MicronDisplayState *state, const Font *font, int xpos,
+    int ypos, int chr, uint32_t p);
+int displayDrawStr(MicronDisplayState *state, const Font *font, int xpos,
+    int ypos, const char *str, uint32_t p);

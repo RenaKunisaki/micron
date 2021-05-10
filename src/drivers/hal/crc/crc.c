@@ -3,7 +3,8 @@
 #endif
 #include <micron.h>
 
-int crcHwInitCustom(uint32_t port, uint32_t flags, uint32_t poly, uint32_t seed) {
+int crcHwInitCustom(uint32_t port, uint32_t flags, uint32_t poly,
+uint32_t seed) {
     /** Initialize the hardware CRC module for a custom CRC type.
      *  @param port Which hardware CRC module to use.
      *  @param flags Some of CRC_* (see crc.h).

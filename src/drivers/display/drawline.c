@@ -45,8 +45,12 @@ uint32_t p) {
 
     //Bresenham's algorithm
     if(state->bitsPerPixel == 1) {
-        if(x1 == x2) return displayDrawLineV1BPP(state, x1,MIN(y1,y2),abs(y2-y1),p);
-        if(y1 == y2) return displayDrawLineH1BPP(state, MIN(x1,x2),y1,abs(x2-x1),p);
+        if(x1 == x2) {
+            return displayDrawLineV1BPP(state, x1, MIN(y1,y2), abs(y2-y1), p);
+        }
+        if(y1 == y2) {
+            return displayDrawLineH1BPP(state, MIN(x1,x2), y1, abs(x2-x1), p);
+        }
     }
 
     if(abs(y2-y1) < abs(x2-x1)) {

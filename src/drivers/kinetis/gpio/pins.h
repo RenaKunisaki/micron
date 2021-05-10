@@ -178,7 +178,8 @@ INLINE int kinetis_gpioSetPinSlewRate(uint32_t pin, PinSlewRate rate) {
     }
 }
 
-INLINE int kinetis_gpioSetPinDriveStrength(uint32_t pin, PinDriveStrength strength) {
+INLINE int kinetis_gpioSetPinDriveStrength(uint32_t pin,
+PinDriveStrength strength) {
     switch(strength) {
         case PIN_DRIVE_STRENGTH_HIGH:
             PIN_CONTROL_REG(pin) |= PCR_DRIVE_STRENGTH_HI;

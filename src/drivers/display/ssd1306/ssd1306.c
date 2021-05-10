@@ -1,7 +1,8 @@
 #include <micron.h>
 #include "ssd1306.h"
 
-int _sendPacket(SSD1306_State *state, int isCmd, const uint8_t *data, size_t len) {
+int _sendPacket(SSD1306_State *state, int isCmd, const uint8_t *data,
+size_t len) {
     /** Send a packet to the display.
      *  @param state Display state to use.
      *  @param isCmd Whether this is a command packet or data packet.
@@ -79,7 +80,8 @@ int ssd1306_init(SSD1306_State *state) {
 
     state->display.bitsPerPixel = 1;
     state->display.setPixel = displaySetPixel1BPP;
-    state->display.updatePartial = (DisplayUpdatePartialFunc)ssd1306_updatePartial;
+    state->display.updatePartial =
+        (DisplayUpdatePartialFunc)ssd1306_updatePartial;
     state->display.update = (DisplayUpdateFunc)ssd1306_update;
     return _sendCmds(state, commands);
 }
@@ -142,7 +144,8 @@ int ssd1306_setVFlip(SSD1306_State *state, int on) {
     return _sendCmdByte(state, on ? SSD1306_CMD_SET_COM_DESCENDING : SSD1306_CMD_SET_COM_ASCENDING);
 }
 
-int ssd1306_updatePartial(SSD1306_State *state, int xs, int ys, int width, int height) {
+int ssd1306_updatePartial(SSD1306_State *state, int xs, int ys, int width,
+int height) {
     /** Send block of screenData to display.
      */
     uint8_t *screenData = (uint8_t*)state->display.vram;
