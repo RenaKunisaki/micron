@@ -8,6 +8,24 @@
 	extern "C" {
 #endif
 
+//pin bit flags for our API
+#define MCP23017_PIN_A1 BIT(0)
+#define MCP23017_PIN_A2 BIT(1)
+#define MCP23017_PIN_A3 BIT(2)
+#define MCP23017_PIN_A4 BIT(3)
+#define MCP23017_PIN_A5 BIT(4)
+#define MCP23017_PIN_A6 BIT(5)
+#define MCP23017_PIN_A7 BIT(6)
+#define MCP23017_PIN_A8 BIT(7)
+#define MCP23017_PIN_B1 BIT(8)
+#define MCP23017_PIN_B2 BIT(9)
+#define MCP23017_PIN_B3 BIT(10)
+#define MCP23017_PIN_B4 BIT(11)
+#define MCP23017_PIN_B5 BIT(12)
+#define MCP23017_PIN_B6 BIT(13)
+#define MCP23017_PIN_B7 BIT(14)
+#define MCP23017_PIN_B8 BIT(15)
+
 //register addresses in linear mode
 #define MCP23017_REG_IODIRA   0x00 //I/O direction (1 bit per pin, 0=out 1=in)
 #define MCP23017_REG_IODIRB   0x01
@@ -75,10 +93,13 @@
 #define MCP23017_INT_ON_VALUE  1 //interrupt when != DEFVAL
 
 
-int mcp23017ReadReg(uint8_t port, uint8_t address, uint8_t reg, uint32_t timeout);
-int mcp23017ReadRegPair(uint8_t port, uint8_t address, uint8_t reg, uint32_t timeout);
+int mcp23017ReadReg(uint8_t port, uint8_t address, uint8_t reg,
+    uint32_t timeout);
+int mcp23017ReadRegPair(uint8_t port, uint8_t address, uint8_t reg,
+    uint32_t timeout);
 int mcp23017WriteReg(uint8_t port, uint8_t address, uint8_t reg, uint8_t data);
-int mcp23017WriteRegPair(uint8_t port, uint8_t address, uint8_t reg, uint16_t data);
+int mcp23017WriteRegPair(uint8_t port, uint8_t address, uint8_t reg,
+    uint16_t data);
 int mcp23017SetIocon(uint8_t port, uint8_t address, uint8_t val);
 int mcp23017SetDirection(uint8_t port, uint8_t address, uint16_t dir);
 int mcp23017SetPolarity(uint8_t port, uint8_t address, uint16_t pol);

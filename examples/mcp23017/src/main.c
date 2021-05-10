@@ -1,6 +1,7 @@
 /** Test/demo of MCP23017 16-bit I2C I/O Expander.
  *  Port A will cycle through bits, while port B is used as an input
  *  whose state is shown over UART.
+ *  If you connect LEDs to each port A pin you should see them "chasing".
  */
 #include <micron.h>
 #include <drivers/mcp23017/mcp23017.h>
@@ -60,24 +61,25 @@ int main() {
         }
         else err = state;
 
-        printf("\rPortA: %c%c%c%c %c%c%c%c PortB: %c%c%c%c %c%c%c%c Err: %d     ",
-                ((lastState >>  0) & 1) + '0',
-                ((lastState >>  1) & 1) + '0',
-                ((lastState >>  2) & 1) + '0',
-                ((lastState >>  3) & 1) + '0',
-                ((lastState >>  4) & 1) + '0',
-                ((lastState >>  5) & 1) + '0',
-                ((lastState >>  6) & 1) + '0',
-                ((lastState >>  7) & 1) + '0',
-                ((lastState >>  8) & 1) + '0',
-                ((lastState >>  9) & 1) + '0',
-                ((lastState >> 10) & 1) + '0',
-                ((lastState >> 11) & 1) + '0',
-                ((lastState >> 12) & 1) + '0',
-                ((lastState >> 13) & 1) + '0',
-                ((lastState >> 14) & 1) + '0',
-                ((lastState >> 15) & 1) + '0',
-                err);
+        printf(
+            "\rPortA: %c%c%c%c %c%c%c%c PortB: %c%c%c%c %c%c%c%c Err: %d     ",
+            ((lastState >>  0) & 1) + '0',
+            ((lastState >>  1) & 1) + '0',
+            ((lastState >>  2) & 1) + '0',
+            ((lastState >>  3) & 1) + '0',
+            ((lastState >>  4) & 1) + '0',
+            ((lastState >>  5) & 1) + '0',
+            ((lastState >>  6) & 1) + '0',
+            ((lastState >>  7) & 1) + '0',
+            ((lastState >>  8) & 1) + '0',
+            ((lastState >>  9) & 1) + '0',
+            ((lastState >> 10) & 1) + '0',
+            ((lastState >> 11) & 1) + '0',
+            ((lastState >> 12) & 1) + '0',
+            ((lastState >> 13) & 1) + '0',
+            ((lastState >> 14) & 1) + '0',
+            ((lastState >> 15) & 1) + '0',
+            err);
 
         mcp23017Write(mcpPort, mcpAddr, 1 << count);
         count++;
