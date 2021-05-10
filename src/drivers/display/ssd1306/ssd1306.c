@@ -11,8 +11,8 @@ int _sendPacket(SSD1306_State *state, int isCmd, const uint8_t *data, size_t len
     uint8_t prefix = isCmd ? SSD1306_PREFIX_CMD : SSD1306_PREFIX_DATA;
     uint8_t port = state->i2cPort;
     int err = i2cBeginTx(port, state->i2cAddr);
-    if(err >  0) err = i2cSend(port, &prefix, 1);
-    if(err >= 0) err = i2cSend(port, data, len);
+    if(err >  0) err = i2cContinueTx(port, &prefix, 1);
+    if(err >= 0) err = i2cContinueTx(port, data, len);
     if(err >= 0) err = i2cEndTx(port, 1);
     return err;
 }

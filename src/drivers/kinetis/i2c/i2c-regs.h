@@ -109,6 +109,6 @@ typedef struct {
 		};
 		uint16_t SLT;
 	};
-} volatile i2c_regs_t;
+} volatile i2cRegs_t;
 
 #endif //_MICRON_I2C_REGS_H_
