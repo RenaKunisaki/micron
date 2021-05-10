@@ -65,9 +65,9 @@ int kinetis_i2cShutdown(uint8_t port);
 int kinetis_i2cGetStatus(uint8_t port);
 int kinetis_i2cSendByte(uint8_t port, uint8_t data);
 int kinetis_i2cEndTx(uint8_t port, uint8_t stop);
-int kinetis_i2cRead(micronI2cState *state, uint8_t *buffer, uint32_t length,
+int kinetis_i2cRead(MicronI2cState *state, uint8_t *buffer, uint32_t length,
     uint32_t timeout);
-int kinetis_i2cRequest(micronI2cState *state, uint8_t address, uint32_t length,
+int kinetis_i2cRequest(MicronI2cState *state, uint8_t address, uint32_t length,
     uint8_t stop, uint8_t *buffer, uint32_t timeout);
 
 #ifdef __cplusplus

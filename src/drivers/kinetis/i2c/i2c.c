@@ -3,16 +3,52 @@
 #endif
 #include <micron.h>
 
-static const uint8_t i2c_scl_pin[] = {
+static const uint8_t i2cSclPin[] = {
     I2C0_SCL_PIN,
     #if NUM_I2C > 1
         I2C1_SCL_PIN,
     #endif
+    #if NUM_I2C > 2
+        I2C2_SCL_PIN,
+    #endif
+    #if NUM_I2C > 3
+        I2C3_SCL_PIN,
+    #endif
+    #if NUM_I2C > 4
+        I2C4_SCL_PIN,
+    #endif
+    #if NUM_I2C > 5
+        I2C5_SCL_PIN,
+    #endif
+    #if NUM_I2C > 6
+        I2C6_SCL_PIN,
+    #endif
+    #if NUM_I2C > 7
+        I2C7_SCL_PIN,
+    #endif
 };
-static const uint8_t i2c_sda_pin[] = {
+static const uint8_t i2cSdaPin[] = {
     I2C0_SDA_PIN,
     #if NUM_I2C > 1
         I2C1_SDA_PIN,
+    #endif
+    #if NUM_I2C > 2
+        I2C2_SDA_PIN,
+    #endif
+    #if NUM_I2C > 3
+        I2C3_SDA_PIN,
+    #endif
+    #if NUM_I2C > 4
+        I2C4_SDA_PIN,
+    #endif
+    #if NUM_I2C > 5
+        I2C5_SDA_PIN,
+    #endif
+    #if NUM_I2C > 6
+        I2C6_SDA_PIN,
+    #endif
+    #if NUM_I2C > 7
+        I2C7_SDA_PIN,
     #endif
 };
 volatile i2cRegs_t *i2cRegs[NUM_I2C] = {
@@ -20,15 +56,33 @@ volatile i2cRegs_t *i2cRegs[NUM_I2C] = {
     #if NUM_I2C > 1
     	(volatile i2cRegs_t*)I2C_REG_BASE(1)
     #endif
+    #if NUM_I2C > 2
+    	(volatile i2cRegs_t*)I2C_REG_BASE(2)
+    #endif
+    #if NUM_I2C > 3
+    	(volatile i2cRegs_t*)I2C_REG_BASE(3)
+    #endif
+    #if NUM_I2C > 4
+    	(volatile i2cRegs_t*)I2C_REG_BASE(4)
+    #endif
+    #if NUM_I2C > 5
+    	(volatile i2cRegs_t*)I2C_REG_BASE(5)
+    #endif
+    #if NUM_I2C > 6
+    	(volatile i2cRegs_t*)I2C_REG_BASE(6)
+    #endif
+    #if NUM_I2C > 7
+    	(volatile i2cRegs_t*)I2C_REG_BASE(7)
+    #endif
 };
-static const uint32_t i2c_pin_mode =
+static const uint32_t i2cPinMode =
 	PCR_OPEN_DRAIN | PCR_SLEW_SLOW | PCR_DRIVE_STRENGTH_HI | PCR_MUX(2);
 WEAK uint8_t i2cInterruptPriority = 48; //0 = highest priority, 255 = lowest
 
 //XXX this is still a huge mess that needs cleanup and documentation
 
 int kinetis_i2cWaitForBus(uint8_t port, uint32_t timeout) {
-    micronI2cState *state = i2cState[port];
+    MicronI2cState *state = i2cState[port];
     i2cRegs_t *reg = i2cRegs[port];
 
 	do {
@@ -64,10 +118,10 @@ int kinetis_i2cInit(uint8_t port, int address) {
 		return -ENOSYS;
 	#endif
 
-    micronI2cState *state = i2cState[port];
+    MicronI2cState *state = i2cState[port];
 	i2cRegs_t *reg = i2cRegs[port];
-	int_fast8_t scl = i2c_scl_pin[port];
-	int_fast8_t sda = i2c_sda_pin[port];
+	int_fast8_t scl = i2cSclPin[port];
+	int_fast8_t sda = i2cSdaPin[port];
 	state->scl_pin  = scl;
 	state->sda_pin  = sda;
 
@@ -79,8 +133,8 @@ int kinetis_i2cInit(uint8_t port, int address) {
 	reg->SMB.byte = 0;
 
 	//set up pins
-    kinetis_internalSetPinMode(scl, i2c_pin_mode, PIN_DIR_OUTPUT);
-    kinetis_internalSetPinMode(sda, i2c_pin_mode, PIN_DIR_OUTPUT);
+    kinetis_internalSetPinMode(scl, i2cPinMode, PIN_DIR_OUTPUT);
+    kinetis_internalSetPinMode(sda, i2cPinMode, PIN_DIR_OUTPUT);
 
 	//set up module
     reg->F  .byte = I2C_CLOCK;   //set clock speed
@@ -132,7 +186,7 @@ int kinetis_i2cSendByte(uint8_t port, uint8_t data) {
     return 0;
 }
 
-int kinetis_i2cRead(micronI2cState *state, uint8_t *buffer, uint32_t length,
+int kinetis_i2cRead(MicronI2cState *state, uint8_t *buffer, uint32_t length,
 uint32_t timeout) {
 	i2cRegs_t *reg = i2cRegs[state->port];
 
@@ -185,7 +239,7 @@ uint32_t timeout) {
  * XXX make the parameters/order less silly; support slave mode; don't deadlock
  * if receiving less than expected; return # bytes received
  */
-int kinetis_i2cRequest(micronI2cState *state, uint8_t address, uint32_t length,
+int kinetis_i2cRequest(MicronI2cState *state, uint8_t address, uint32_t length,
 uint8_t stop, uint8_t *buffer, uint32_t timeout) {
 	i2cRegs_t *reg = i2cRegs[state->port];
 
@@ -229,7 +283,7 @@ uint8_t stop, uint8_t *buffer, uint32_t timeout) {
 }
 
 
-static void isrI2CStateTx(micronI2cState *state, i2cRegs_t *reg) {
+static void isrI2CStateTx(MicronI2cState *state, i2cRegs_t *reg) {
 	if(state->txbuf.tail != state->txbuf.head) {
 		//printf("tx: %d / %d  -  rx: %d / %d: %p\r\n", state->txbuf.tail,
 		//	state->txbuf.head, state->rxbuf.idx, state->rxbuf.len,
@@ -255,7 +309,7 @@ static void isrI2CStateTx(micronI2cState *state, i2cRegs_t *reg) {
 }
 
 
-static void isrI2CStateRx(micronI2cState *state, i2cRegs_t *reg) {
+static void isrI2CStateRx(MicronI2cState *state, i2cRegs_t *reg) {
 	uint8_t C1 = I2C_C1_IICEN | I2C_C1_IICIE | I2C_C1_MST;
 	if(reg->C1.TX) {
 		//we're still in transmit mode, so this interrupt tells us that
@@ -291,7 +345,7 @@ static void isrI2CStateRx(micronI2cState *state, i2cRegs_t *reg) {
 }
 
 
-static void isrI2CStateStop(micronI2cState *state, i2cRegs_t *reg) {
+static void isrI2CStateStop(MicronI2cState *state, i2cRegs_t *reg) {
 	reg->C1.byte = I2C_C1_IICEN | I2C_C1_IICIE;
 	if(state->doRecv) {
 		state->state = MICRON_I2C_STATE_RX;
@@ -301,7 +355,7 @@ static void isrI2CStateStop(micronI2cState *state, i2cRegs_t *reg) {
 }
 
 
-static void isrI2CStateWait(micronI2cState *state, i2cRegs_t *reg) {
+static void isrI2CStateWait(MicronI2cState *state, i2cRegs_t *reg) {
 	//waiting for another interrupt after doing something else.
 	state->state = MICRON_I2C_STATE_IDLE;
 }
@@ -318,7 +372,7 @@ void i2cSlaveTx(uint8_t data) WEAK ALIAS("i2cDefaultSlaveTx");
 //called from default I2C ISRs
 void isrI2C(int port) {
     //digitalWrite(13, 1);
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	i2cRegs_t *reg = i2cRegs[port];
 
     if(reg->S.IAAS) {

@@ -14,7 +14,7 @@
 
 typedef struct {
     uint32_t txCnt, rxCnt; //debug counters
-	uint8_t tx_pin, rx_pin; //which pins this port uses
+	uint8_t txPin, rxPin; //which pins this port uses
 	volatile int transmitting : 1; //is this port currently transmitting?
 	struct {
 		volatile uint8_t data[UART_TX_BUFSIZE];

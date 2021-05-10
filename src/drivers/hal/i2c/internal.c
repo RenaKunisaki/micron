@@ -3,7 +3,7 @@
 #endif
 #include <micron.h>
 
-int _i2cBufferTxP(micronI2cState *state, const void *data, uint32_t len) {
+int _i2cBufferTxP(MicronI2cState *state, const void *data, uint32_t len) {
     /** Internal function to add some data to an I2C transmit buffer.
      *  @param state I2C state.
      *  @param data Data to send.
@@ -26,7 +26,7 @@ int _i2cBufferTxP(micronI2cState *state, const void *data, uint32_t len) {
 	return i;
 }
 
-int _i2cWaitForBus(micronI2cState *state, uint32_t timeout) {
+int _i2cWaitForBus(MicronI2cState *state, uint32_t timeout) {
     /** Internal function to wait for I2C bus ownership.
      *  @param state I2C state.
      *  @param timeout Time at which to stop waiting.
@@ -43,7 +43,7 @@ int _i2cWaitForBus(micronI2cState *state, uint32_t timeout) {
     #endif
 }
 
-int _i2cWaitForIdle(micronI2cState *state, uint32_t timeout) {
+int _i2cWaitForIdle(MicronI2cState *state, uint32_t timeout) {
     /** Internal function to wait for I2C bus to be idle.
      *  @param state I2C state.
      *  @param timeout Time at which to stop waiting.

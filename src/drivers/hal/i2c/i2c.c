@@ -3,7 +3,7 @@
 #endif
 #include <micron.h>
 
-micronI2cState *i2cState[NUM_I2C];
+MicronI2cState *i2cState[NUM_I2C];
 
 int i2cInit(uint32_t port, int address) {
     /** Initialize specified I2C port with specified address.
@@ -18,10 +18,10 @@ int i2cInit(uint32_t port, int address) {
     }
 
     //set up state variables
-	i2cState[port] = (micronI2cState*)malloc(sizeof(micronI2cState));
+	i2cState[port] = (MicronI2cState*)malloc(sizeof(MicronI2cState));
 	if(i2cState[port] == NULL) return -ENOMEM;
-	micronI2cState *state = i2cState[port];
-	memset(state, 0, sizeof(micronI2cState));
+	MicronI2cState *state = i2cState[port];
+	memset(state, 0, sizeof(MicronI2cState));
     state->port = port;
     if(address >= 0) state->slaveMode = 1;
 
@@ -67,7 +67,7 @@ int i2cBeginTx(uint32_t port, uint8_t address) {
      *  @return 0 on success, or a negative error code on failure.
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
 	//state->transmitting = 1;
 	state->doRecv = 0;
@@ -89,7 +89,7 @@ int i2cContinueTx(uint32_t port, const void *data, uint32_t len) {
      *   transmit buffer is full), or a negative error code.
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
 
 	//queue data to send.
@@ -114,7 +114,7 @@ int i2cEndTx(uint32_t port, bool stop) {
      *  XXX support slave mode, allow to specify timeout
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
 
     int err = _i2cWaitForBus(state, millis() + 100);
@@ -176,7 +176,7 @@ int i2cGetNumRecv(uint32_t port) {
      *  @return Number of bytes, or negative error code.
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
 	return state->rxbuf.idx;
 }
@@ -190,7 +190,7 @@ int i2cRead(uint32_t port, uint8_t *buffer, uint32_t length, uint32_t timeout) {
      *  @return Number of bytes received, or negative error code.
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
 
     state->rxbuf.data = NULL;
@@ -236,7 +236,7 @@ uint8_t *buffer, uint32_t timeout) {
      * if receiving less than expected; return # bytes received
      */
     if(port >= NUM_I2C) return -ENODEV;
-	micronI2cState *state = i2cState[port];
+	MicronI2cState *state = i2cState[port];
 	if(state == NULL) return -EBADFD;
     timeout += millis();
     state->rxbuf.data = NULL;

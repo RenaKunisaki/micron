@@ -14,7 +14,7 @@
 #define UART_C2_TX_COMPLETING (UART_C2_ENABLE | UART_C2_TCIE)
 #define UART_C2_TX_INACTIVE	  (UART_C2_ENABLE)
 
-extern uint8_t uart_interrupt_priority;
+extern uint8_t uartInterruptPriority;
 extern MicronUartState *_uartState[NUM_UART];
 
 //serial.c

@@ -5,13 +5,55 @@
 #endif
 #include <micron.h>
 
-WEAK uint8_t uart_interrupt_priority = 64; //0 = highest priority, 255 = lowest
+WEAK uint8_t uartInterruptPriority = 64; //0 = highest priority, 255 = lowest
 
-static const uint8_t uart_tx_pin[] = {
-    UART0_TX_PIN, UART1_TX_PIN, UART2_TX_PIN, //XXX more
+static const uint8_t uartTxPin[] = {
+    UART0_TX_PIN,
+    #if NUM_UART > 1
+        UART1_TX_PIN,
+    #endif
+    #if NUM_UART > 2
+        UART2_TX_PIN,
+    #endif
+    #if NUM_UART > 3
+        UART3_TX_PIN,
+    #endif
+    #if NUM_UART > 4
+        UART4_TX_PIN,
+    #endif
+    #if NUM_UART > 5
+        UART5_TX_PIN,
+    #endif
+    #if NUM_UART > 6
+        UART6_TX_PIN,
+    #endif
+    #if NUM_UART > 7
+        UART7_TX_PIN,
+    #endif
 };
-static const uint8_t uart_rx_pin[] = {
-    UART0_RX_PIN, UART1_RX_PIN, UART2_RX_PIN,
+static const uint8_t uartRxPin[] = {
+    UART0_RX_PIN,
+    #if NUM_UART > 1
+        UART1_RX_PIN,
+    #endif
+    #if NUM_UART > 2
+        UART2_RX_PIN,
+    #endif
+    #if NUM_UART > 3
+        UART3_RX_PIN,
+    #endif
+    #if NUM_UART > 4
+        UART4_RX_PIN,
+    #endif
+    #if NUM_UART > 5
+        UART5_RX_PIN,
+    #endif
+    #if NUM_UART > 6
+        UART6_RX_PIN,
+    #endif
+    #if NUM_UART > 7
+        UART7_RX_PIN,
+    #endif
 };
 
 
@@ -44,16 +86,16 @@ int kinetis_serialSetBaud(uint32_t port, uint32_t baud) {
  *  and setting up interrupts.
  */
 int kinetis_serialInit(uint32_t port, uint32_t baud) {
-    _uartState[port]->tx_pin = uart_tx_pin[port];
-	_uartState[port]->rx_pin = uart_rx_pin[port];
+    _uartState[port]->txPin = uartTxPin[port];
+	_uartState[port]->rxPin = uartRxPin[port];
 
     //enable clock for UART module.
 	SIM_SCGC4 |= (SIM_SCGC4_UART0 << port);
 
 	//set up pins
-    kinetis_internalSetPinMode(uart_tx_pin[port],
+    kinetis_internalSetPinMode(uartTxPin[port],
         PCR_DRIVE_STRENGTH_HI | PCR_SLEW_SLOW | PCR_MUX(3), PIN_DIR_OUTPUT);
-    kinetis_internalSetPinMode(uart_rx_pin[port],
+    kinetis_internalSetPinMode(uartRxPin[port],
         PCR_PULLUP | PCR_FILTER | PCR_MUX(3), PIN_DIR_INPUT);
 
 	//set up module
@@ -82,7 +124,7 @@ int kinetis_serialInit(uint32_t port, uint32_t baud) {
 	regs->C2 = UART_C2_TE | UART_C2_RE | UART_C2_RIE;
 
 	//enable UART status interrupt in NVIC
-	NVIC_SET_PRIORITY(IRQ_UART0_STATUS + (port*2), uart_interrupt_priority);
+	NVIC_SET_PRIORITY(IRQ_UART0_STATUS + (port*2), uartInterruptPriority);
 	NVIC_ENABLE_IRQ  (IRQ_UART0_STATUS + (port*2));
 
 	return 0; //init OK
@@ -111,7 +153,7 @@ int kinetis_serialSend(uint32_t port, const void *data, uint32_t len) {
 	MicronUartState *uart = _uartState[port];
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
 
-	digitalWrite(uart->tx_pin, 1); //tx assert
+	digitalWrite(uart->txPin, 1); //tx assert
 
 	uint32_t fifoSize = (regs->PFIFO & 0x70) >> 4; //size of HW TX FIFO
 	if(fifoSize == 0) fifoSize = 1;

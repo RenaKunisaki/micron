@@ -7,7 +7,7 @@
 #include <micron.h>
 
 //called from default UART ISRs to handle receiving
-void uart_isr_rx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
+void uartIsrRxDefault(MicronUartState *uart, KINETISK_UART_t *regs) {
 	uint8_t avail = regs->RCFIFO;
 	if (avail == 0) { //Rx FIFO empty
 		/* The only way to clear the IDLE interrupt flag is
@@ -45,12 +45,12 @@ void uart_isr_rx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
 	}
 }
 
-static void uart_isr_tx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
+static void uartIsrTxDefault(MicronUartState *uart, KINETISK_UART_t *regs) {
     if(uart->txbuf.head == uart->txbuf.tail) {
         //we don't have any more to send.
         if(regs->S1 & UART_S1_TC) { //last char has finished sending.
             uart->transmitting = 0;
-            digitalWrite(uart->tx_pin, 0); //tx deassert
+            digitalWrite(uart->txPin, 0); //tx deassert
         }
         //else wait for Transmit Complete interrupt
         else regs->C2 |= UART_C2_TCIE | UART_C2_TE;
@@ -78,11 +78,11 @@ static void uart_isr_tx_default(MicronUartState *uart, KINETISK_UART_t *regs) {
     }
 }
 
-void uart_isr_rx(MicronUartState *uart, KINETISK_UART_t *regs)
-    WEAK ALIAS("uart_isr_rx_default");
+void uartIsrRx(MicronUartState *uart, KINETISK_UART_t *regs)
+    WEAK ALIAS("uartIsrRxDefault");
 
-void uart_isr_tx(MicronUartState *uart, KINETISK_UART_t *regs)
-    WEAK ALIAS("uart_isr_tx_default");
+void uartIsrTx(MicronUartState *uart, KINETISK_UART_t *regs)
+    WEAK ALIAS("uartIsrTxDefault");
 
 //called from default UART ISRs
 void isrUartStatus(int port) {
@@ -95,14 +95,14 @@ void isrUartStatus(int port) {
 	//  LIN break detect               UART_S2_LBKDIF
 	//  RxD pin active edge            UART_S2_RXEDGIF
     //  see UARTx_BDH and UARTx_BDL for the last one.
-    irqDisable(); //avoid race condition (see uart_isr_rx_default)
+    irqDisable(); //avoid race condition (see uartIsrRxDefault)
     MicronUartState *uart = _uartState[port];
 	KINETISK_UART_t *regs = (KINETISK_UART_t*)UART_REG_BASE(port);
     //disable all interrupts while we handle them.
     //leave transmitter and receiver enabled.
     regs->C2 = UART_C2_TE | UART_C2_RE;
-    uart_isr_rx(uart, regs);
-    uart_isr_tx(uart, regs);
+    uartIsrRx(uart, regs);
+    uartIsrTx(uart, regs);
     regs->C2 |= UART_C2_RIE; //enable receiver interrupt.
     //Cortex-M4 ARM errata 838869: "Store immediate overlapping
     //exception return operation might vector to incorrect interrupt"
