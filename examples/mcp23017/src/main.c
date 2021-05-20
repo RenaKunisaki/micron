@@ -38,6 +38,7 @@ int main() {
 	stdout = openSerial(0, &err);
 	stderr = stdout;
     if(err) fail(3);
+    printf("\e[0m\e[2J\e[H\r\n *** MCP23017 DEMO PROGRAM *** \r\n");
 
     err = i2cInit(mcpPort, -1);
     if(err) {
@@ -59,7 +60,11 @@ int main() {
             lastState = state;
             err = 0;
         }
-        else err = state;
+        else {
+            err = state;
+            //printf("ERROR %d  \r\n", err);
+            //osReboot();
+        }
 
         printf(
             "\rPortA: %c%c%c%c %c%c%c%c PortB: %c%c%c%c %c%c%c%c Err: %d     ",

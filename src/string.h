@@ -17,6 +17,8 @@ PURE MUST_CHECK   int  strncmp(const char *str1, const char *str2, size_t num);
                  char* strncpy(char *dst, const char *src, size_t num);
 PURE MUST_CHECK  char* strpbrk(const char *str1, const char *str2);
 PURE MUST_CHECK  char* strrchr(const char *str, int character);
+long int strtol(const char *str, char **endptr, int base);
+unsigned long int strtoul(const char *str, char **endptr, int base);
 
 #define MEMSET_ALL(dst, val) memset((void*)(dst), (val), sizeof(dst))
 

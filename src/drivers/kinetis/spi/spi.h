@@ -5,12 +5,17 @@
 	extern "C" {
 #endif
 
-int spiBegin(uint8_t pin, uint32_t speed, uint32_t mode);
-int spiChangeSpeed(uint32_t speed, uint32_t mode);
-int spiWrite(uint32_t b, uint32_t cont, uint32_t timeout);
-int spiRead(uint32_t timeout, uint32_t *out);
-int spiWaitTxDone(uint32_t timeout);
-void spiClear();
+int kinetis_spiInit(uint32_t port, uint8_t pinCS, uint32_t speed,
+    MicronSpiModeEnum mode);
+int kinetis_spiPause(uint32_t port, bool pause);
+int kinetis_spiSetMode(uint32_t port, MicronSpiModeEnum mode);
+int kinetis_spiSetSpeed(uint32_t port, uint32_t speed);
+int kinetis_spiSetFrameSize(uint32_t port, uint32_t size);
+int kinetis_spiWriteDummy(uint32_t port, uint32_t data, uint32_t timeout);
+int kinetis_spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout);
+int kinetis_spiRead(uint32_t port, uint32_t *out, uint32_t timeout);
+int kinetis_spiWaitTxDone(uint32_t port, uint32_t timeout);
+int kinetis_spiClear(uint32_t port);
 
 #ifdef __cplusplus
     } //extern "C"

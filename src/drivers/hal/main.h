@@ -5,5 +5,6 @@
 #include "gpio/gpio.h"
 #include "crc/crc.h"
 #include "i2c/i2c.h"
+#include "spi/spi.h"
 
 #endif //_MICRON_HAL_MAIN_H_

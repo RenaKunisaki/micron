@@ -4,75 +4,167 @@
 #endif
 #include <micron.h>
 
-static uint8_t pcs;
-static volatile uint32_t *reg;
+static uint8_t pcs[NUM_SPI];
+static volatile uint32_t *regCS[NUM_SPI];
 
-int spiBegin(uint8_t pin, uint32_t speed, uint32_t mode) {
-    mode <<= 2;
+int kinetis_spiInit(uint32_t port, uint8_t pinCS, uint32_t speed,
+MicronSpiModeEnum mode) {
     uint32_t ctar = speed;
     SIM_SCGC6 |= SIM_SCGC6_SPI0; //turn on SPI
-    if (mode & 0x08) ctar |= SPI_CTAR_CPOL; //clock active low
-    if (mode & 0x04) {
+    if (mode & 0x02) ctar |= SPI_CTAR_CPOL; //clock active low
+    if (mode & 0x01) {
         ctar |= SPI_CTAR_CPHA; //clock phase: change on leading edge
-        ctar |= (ctar & 0x0F) << 8;
+        ctar |= (ctar & 0x0F) << 8; //wtf?
+        //this is extracting BR and copying it to ASC... why?
+        //ASC is After SCK delay scaler
     } else {
+        //this is extracting BR and copying it to CSSCK (PCS to SCK delay scaler)
         ctar |= (ctar & 0x0F) << 12;
     }
-    SPI0_CTAR0 = ctar | SPI_CTAR_FMSZ(7); //frame size
-    SPI0_CTAR1 = ctar | SPI_CTAR_FMSZ(15);
-    SPI0_CTAR0_SLAVE = SPI_CTAR_FMSZ(3);
-    SPI0_MCR = //SPI_MCR_MSTR | //master mode
-        //SPI_MCR_CONT_SCKE | //continuous clock
-        //SPI_MCR_MDIS | //module disable
-        SPI_MCR_HALT | //stop transfers
-        SPI_MCR_PCSIS(0x1F); //inactive high for all PCS
 
-    switch(pin) {
-        case 10: pcs = 0x01; break; //PTC4
-        case  2: pcs = 0x01; break; //PTD0
-        case  9: pcs = 0x02; break; //PTC3
-        case  6: pcs = 0x02; break; //PTD4
-        case 20: pcs = 0x04; break; //PTD5
-        case 23: pcs = 0x04; break; //PTC2
-        case 21: pcs = 0x08; break; //PTD6
-        case 22: pcs = 0x08; break; //PTC1
-        case 15: pcs = 0x10; break; //PTC0
-        default: pcs = 0; gpioSetPinMode(pin, PIN_MODE_OUTPUT);
+    SPI0_MCR = SPI_MCR_HALT | //stop transfers
+        //SPI_MCR_MDIS | //module disable
+        //SPI_MCR_CONT_SCKE | //continuous clock
+        SPI_MCR_PCSIS(0x1F) | //inactive high for all PCS
+        SPI_MCR_CLR_RXF | SPI_MCR_CLR_TXF; //clear FIFOs
+    if(mode & SPI_MODE_SLAVE) {
+        SPI0_CTAR0_SLAVE = SPI_CTAR_FMSZ(7);
+    }
+    else {
+        SPI0_MCR |= SPI_MCR_MSTR;
+        SPI0_CTAR0 = ctar | SPI_CTAR_FMSZ(7); //default frame sizes (#bits - 1)
+        SPI0_CTAR1 = ctar | SPI_CTAR_FMSZ(7);
     }
 
-    reg = (volatile uint32_t*)&PDOR(pin);
-    if(pcs) PCR(pin) = PORT_PCR_MUX(2);
+    switch(pinCS) {
+        case 10: pcs[port] = 0x01; break; //PTC4
+        case  2: pcs[port] = 0x01; break; //PTD0
+        case  9: pcs[port] = 0x02; break; //PTC3
+        case  6: pcs[port] = 0x02; break; //PTD4
+        case 20: pcs[port] = 0x04; break; //PTD5
+        case 23: pcs[port] = 0x04; break; //PTC2
+        case 21: pcs[port] = 0x08; break; //PTD6
+        case 22: pcs[port] = 0x08; break; //PTC1
+        case 15: pcs[port] = 0x10; break; //PTC0
+        //we can use any other digital output as CS but we'll
+        //need to drive it manually.
+        default: pcs[port] = 0; gpioSetPinMode(pinCS, PIN_MODE_OUTPUT);
+    }
+
+    regCS[port] = (volatile uint32_t*)&PDOR(pinCS);
+    if(pcs[port]) PCR(pinCS) = PORT_PCR_MUX(2);
 
     CORE_PIN11_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2); // DOUT/MOSI = 11 (PTC6)
     CORE_PIN12_CONFIG = PORT_PCR_MUX(2);  // DIN/MISO = 12 (PTC7)
-    CORE_PIN13_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2); // SCK = 13 (PTC5)
+    //CORE_PIN13_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2); // SCK = 13 (PTC5)
+    //XXX allow to specify this
+    CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2); // SCK = 13 (PTC5)
     //SPI0_MCR = (SPI0_MCR & ~SPI_MCR_HALT) | SPI_MCR_CLR_RXF | SPI_MCR_CLR_TXF;
 
     return 0;
 }
 
-int spiChangeSpeed(uint32_t speed, uint32_t mode) {
-    //XXX mode
-    uint32_t ctar = speed;
-    SPI0_CTAR0 = ctar | SPI_CTAR_FMSZ(7); //frame size
-    SPI0_CTAR1 = ctar | SPI_CTAR_FMSZ(15);
+int kinetis_spiPause(uint32_t port, bool pause) {
+    bool paused = SPI0_MCR & SPI_MCR_HALT;
+    if(pause) SPI0_MCR |= SPI_MCR_HALT;
+    else SPI0_MCR &= ~SPI_MCR_HALT;
+    return paused;
+}
+
+int kinetis_spiSetMode(uint32_t port, MicronSpiModeEnum mode) {
+    uint32_t flags = 0;
+    if(mode & 1) flags |= SPI_CTAR_CPHA;
+    if(mode & 2) flags |= SPI_CTAR_CPOL;
+
+    bool paused = kinetis_spiPause(port, true); //required to change other bits
+    if(mode & SPI_MODE_SLAVE) {
+        SPI0_MCR &= ~SPI_MCR_MSTR;
+        SPI0_CTAR0_SLAVE = (SPI0_CTAR0_SLAVE &
+            ~(SPI_CTAR_CPOL | SPI_CTAR_CPHA)) | flags;
+    }
+    else {
+        SPI0_MCR |= SPI_MCR_MSTR;
+        uint32_t ctar0 = SPI0_CTAR0 & ~(SPI_CTAR_CPOL | SPI_CTAR_CPHA);
+        uint32_t ctar1 = SPI0_CTAR1 & ~(SPI_CTAR_CPOL | SPI_CTAR_CPHA);
+        SPI0_CTAR0 = ctar0 | flags;
+        SPI0_CTAR1 = ctar1 | flags;
+
+        //XXX what's this about?
+        if (mode & 0x01) {
+            ctar0 |= (ctar0 & 0x0F) << 8;
+            ctar1 |= (ctar1 & 0x0F) << 8;
+        } else {
+            ctar0 |= (ctar0 & 0x0F) << 12;
+            ctar1 |= (ctar1 & 0x0F) << 12;
+        }
+    }
+    if(!paused) kinetis_spiPause(port, false);
     return 0;
 }
 
-int spiWrite(uint32_t b, uint32_t cont, uint32_t timeout) {
+int kinetis_spiSetSpeed(uint32_t port, uint32_t speed) {
+    bool paused = kinetis_spiPause(port, true); //required to change other bits
+    SPI0_CTAR0 = (SPI0_CTAR0 & ~0xF) | speed;
+    SPI0_CTAR1 = (SPI0_CTAR1 & ~0xF) | speed;
+    if(!paused) kinetis_spiPause(port, false);
+    return 0;
+}
+
+int kinetis_spiSetFrameSize(uint32_t port, uint32_t size) {
+    bool paused = kinetis_spiPause(port, true); //required to change other bits
+    uint32_t mask = ~SPI_CTAR_FMSZ(15);
+    if(SPI0_MCR & SPI_MCR_MSTR) {
+        SPI0_CTAR0 = (SPI0_CTAR0 & mask) | SPI_CTAR_FMSZ(size - 1);
+        SPI0_CTAR1 = (SPI0_CTAR1 & mask) | SPI_CTAR_FMSZ(size - 1);
+    }
+    else {
+        SPI0_CTAR0_SLAVE = (SPI0_CTAR0_SLAVE & mask) | SPI_CTAR_FMSZ(size - 1);
+    }
+    if(!paused) kinetis_spiPause(port, false);
+    return 0;
+}
+
+int kinetis_spiWriteDummy(uint32_t port, uint32_t data, uint32_t timeout) {
     uint32_t t = millis() + timeout;
-    uint32_t pcsbits = pcs << 16;
-    if (pcsbits) {
-        SPI0_PUSHR = (b&0xFF)|pcsbits|(cont ? SPI_PUSHR_CONT : 0);
-        //wait if FIFO full
+    uint32_t pcsbits = pcs[port] << 16;
+    uint32_t b = data & 0xFFFF;
+    if(pcsbits) {
+        SPI0_PUSHR = b; //| pcsbits;
+        //wait if FIFO full (TXCTR > 3)
         while(((SPI0_SR) & (15 << 12)) > (3 << 12)) {
             if(millis() >= t) return -ETIMEDOUT;
             idle();
         }
     } else {
-        *reg = 0;
         SPI0_SR = SPI_SR_EOQF;
-        SPI0_PUSHR = (b&0xFF)|(cont ? 0 : SPI_PUSHR_EOQ)|SPI_PUSHR_CONT;
+        SPI0_PUSHR = b | SPI_PUSHR_EOQ;
+        while(!(SPI0_SR & SPI_SR_EOQF)) {
+            if(millis() >= t) return -ETIMEDOUT;
+            idle();
+        }
+    }
+    return 0;
+}
+
+int kinetis_spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout){
+    uint32_t t = millis() + timeout;
+    uint32_t pcsbits = pcs[port] << 16;
+    uint32_t b = data & 0xFFFF;
+    if(pcsbits) {
+        SPI0_PUSHR = b | pcsbits | (cont ? SPI_PUSHR_CONT : 0);
+        //wait if FIFO full (TXCTR > 3)
+        while(((SPI0_SR) & (15 << 12)) > (3 << 12)) {
+            if(millis() >= t) return -ETIMEDOUT;
+            idle();
+        }
+        //uint32_t r = SPI0_POPR;
+        //printf("%04X -> %04X (%c%c)\r\n", data, r, cont ? '-' : 'E',
+        //    gpioGetPinInput(15) ? 'D' : 'C');
+        //delayMS(100);
+    } else {
+        *regCS[port] = 0;
+        SPI0_SR = SPI_SR_EOQF;
+        SPI0_PUSHR = b | (cont ? 0 : SPI_PUSHR_EOQ) | SPI_PUSHR_CONT;
         if(cont) {
             while(((SPI0_SR) & (15 << 12)) > (3 << 12)) {
                 if(millis() >= t) return -ETIMEDOUT;
@@ -83,27 +175,27 @@ int spiWrite(uint32_t b, uint32_t cont, uint32_t timeout) {
                 if(millis() >= t) return -ETIMEDOUT;
                 idle();
             }
-            *reg = 1;
+            *regCS[port] = 1;
         }
     }
     return 0;
 }
 
-int spiRead(uint32_t timeout, uint32_t *out) {
+int kinetis_spiRead(uint32_t port, uint32_t *out, uint32_t timeout) {
     uint32_t t = millis() + timeout;
     //Wait for receive
-    if(reg) *reg = 0;
+    if(regCS[port]) *regCS[port] = 0;
     while((SPI0_SR & (15 << 4)) == 0) { //RXCTR == 0
         if(millis() >= t) return -ETIMEDOUT;
         idle();
     }
     *out = SPI0_POPR;
-    if(reg) *reg = 1;
+    if(regCS[port]) *regCS[port] = 1;
     return 0;
 }
 
 
-int spiWaitTxDone(uint32_t timeout) {
+int kinetis_spiWaitTxDone(uint32_t port, uint32_t timeout) {
     //Wait until transmission is finished
     uint32_t t = millis() + timeout;
     while(!(SPI0_SR & SPI_SR_TCF)) {
@@ -114,8 +206,11 @@ int spiWaitTxDone(uint32_t timeout) {
     return 0;
 }
 
-void spiClear() {
-    SPI0_MCR = /*SPI_MCR_MSTR |*/ SPI_MCR_PCSIS(0x1F) | SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
+int kinetis_spiClear(uint32_t port) {
+    bool paused = kinetis_spiPause(port, true); //required to change other bits
+    SPI0_MCR |= SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
+    if(!paused) kinetis_spiPause(port, false);
+    return 0;
 }
 
 #ifdef __cplusplus

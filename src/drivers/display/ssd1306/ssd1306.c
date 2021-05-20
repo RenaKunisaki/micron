@@ -9,12 +9,22 @@ size_t len) {
      *  @param data Data to send.
      *  @param len Length of data.
      */
-    uint8_t prefix = isCmd ? SSD1306_PREFIX_CMD : SSD1306_PREFIX_DATA;
-    uint8_t port = state->i2cPort;
-    int err = i2cBeginTx(port, state->i2cAddr);
-    if(err >  0) err = i2cContinueTx(port, &prefix, 1);
-    if(err >= 0) err = i2cContinueTx(port, data, len);
-    if(err >= 0) err = i2cEndTx(port, 1);
+    int err = 0;
+    uint8_t port = state->port;
+    if(state->spi) {
+        gpioSetPinOutput(state->pinDC, isCmd ? 0 : 1);
+        for(size_t i=0; i<len; i++) {
+            err = spiWrite(port, data[i], (i+1) < len, 1000);
+            if(err) break;
+        }
+        if(!err) err = spiWaitTxDone(port, 1000);
+    } else {
+        uint8_t prefix = isCmd ? SSD1306_PREFIX_CMD : SSD1306_PREFIX_DATA;
+        err = i2cBeginTx(port, state->i2cAddr);
+        if(err >  0) err = i2cContinueTx(port, &prefix, 1);
+        if(err >= 0) err = i2cContinueTx(port, data, len);
+        if(err >= 0) err = i2cEndTx(port, 1);
+    }
     return err;
 }
 
@@ -77,6 +87,10 @@ int ssd1306_init(SSD1306_State *state) {
         SSD1306_CMD_SET_COM_DESCENDING, //V flip
         //SSD1306_CMD_DISPLAY_ON,
         -1};
+
+    if(state->spi) {
+        gpioSetPinMode(state->pinDC, PIN_MODE_OUTPUT);
+    }
 
     state->display.bitsPerPixel = 1;
     state->display.setPixel = displaySetPixel1BPP;

@@ -18,8 +18,12 @@
 
 typedef struct {
     MicronDisplayState display;
-    uint8_t i2cPort; //which I2C port (0..NUM_I2C-1)
-    uint8_t i2cAddr; //the display's I2C address
+    bool spi; //whether SPI or I2C
+    uint8_t port; //which I2C port (0..NUM_I2C-1 or 0..NUM_SPI-1)
+    union {
+        uint8_t i2cAddr; //the display's I2C address
+        uint8_t pinDC; //D/C GPIO pin
+    };
 } SSD1306_State;
 
 int ssd1306_init(SSD1306_State *state);
@@ -39,20 +43,20 @@ int ssd1306_update(SSD1306_State *state);
 #define SSD1306_PREFIX_DATA 0x40 //first byte of data packet
 //note this is reversed from what some examples say...
 
-#define SSD1306_CMD_SET_CONTRAST 0x81 //followed by 00-FF
-#define SSD1306_CMD_DISPLAY_NORMAL 0xA4 //display contents of RAM
-#define SSD1306_CMD_DISPLAY_TEST 0xA5 //test mode, light all pixels
-#define SSD1306_CMD_INVERT_OFF 0xA6 //do not invert pixels (0=off, 1=on)
-#define SSD1306_CMD_INVERT_ON 0xA7 //invert pixels (1=off, 0=on)
-#define SSD1306_CMD_DISPLAY_OFF 0xAE //turn display off
-#define SSD1306_CMD_DISPLAY_ON 0xAF //turn display on
-#define SSD1306_CMD_CONTINUOUS_SCROLL_RIGHT 0x26
-#define SSD1306_CMD_CONTINUOUS_SCROLL_LEFT 0x27
+#define SSD1306_CMD_SET_CONTRAST             0x81 //followed by 00-FF
+#define SSD1306_CMD_DISPLAY_NORMAL           0xA4 //display contents of RAM
+#define SSD1306_CMD_DISPLAY_TEST             0xA5 //test mode, light all pixels
+#define SSD1306_CMD_INVERT_OFF               0xA6 //do not invert pixels (0=off, 1=on)
+#define SSD1306_CMD_INVERT_ON                0xA7 //invert pixels (1=off, 0=on)
+#define SSD1306_CMD_DISPLAY_OFF              0xAE //turn display off
+#define SSD1306_CMD_DISPLAY_ON               0xAF //turn display on
+#define SSD1306_CMD_CONTINUOUS_SCROLL_RIGHT  0x26
+#define SSD1306_CMD_CONTINUOUS_SCROLL_LEFT   0x27
 #define SSD1306_CMD_CONTINUOUS_SCROLL_RIGHTV 0x29 //right+vertical
-#define SSD1306_CMD_CONTINUOUS_SCROLL_LEFTV 0x2A //left+vertical
-#define SSD1306_CMD_DISABLE_SCROLL 0x2E //stop scrolling
-#define SSD1306_CMD_ENABLE_SCROLL  0x2F //start scrolling
-#define SSD1306_CMD_SET_VSCROLL_AREA 0xA3
+#define SSD1306_CMD_CONTINUOUS_SCROLL_LEFTV  0x2A //left+vertical
+#define SSD1306_CMD_DISABLE_SCROLL           0x2E //stop scrolling
+#define SSD1306_CMD_ENABLE_SCROLL            0x2F //start scrolling
+#define SSD1306_CMD_SET_VSCROLL_AREA         0xA3
 
 #define SSD1306_CMD_SET_ADDRESSING_MODE 0x20
 #define SSD1306_ADDRESSING_HORIZONTAL 0x00
@@ -68,19 +72,19 @@ int ssd1306_update(SSD1306_State *state);
 #define SSD1306_CMD_SET_COLUMN_ADDR 0x21
 #define SSD1306_CMD_SET_PAGE_ADDR   0x22
 
-#define SSD1306_CMD_SET_START_LINE  0x40 //low 6 bits = start line
-#define SSD1306_CMD_SEGMENT_REMAP_OFF 0xA0
-#define SSD1306_CMD_SEGMENT_REMAP_ON 0xA1 //effectively horizontal flip
-#define SSD1306_CMD_SET_MULTIPLEX 0xA8
-#define SSD1306_CMD_SET_COM_ASCENDING 0xC0
+#define SSD1306_CMD_SET_START_LINE     0x40 //low 6 bits = start line
+#define SSD1306_CMD_SEGMENT_REMAP_OFF  0xA0
+#define SSD1306_CMD_SEGMENT_REMAP_ON   0xA1 //effectively horizontal flip
+#define SSD1306_CMD_SET_MULTIPLEX      0xA8
+#define SSD1306_CMD_SET_COM_ASCENDING  0xC0
 #define SSD1306_CMD_SET_COM_DESCENDING 0xC8 //effectively vertical flip
 #define SSD1306_CMD_SET_DISPLAY_OFFSET 0xD3
-#define SSD1306_CMD_SET_COM_CONFIG 0xDA
-#define SSD1306_CMD_SET_CLOCK_DIVIDE 0xD5
-#define SSD1306_CMD_SET_PRECHARGE 0xD9
+#define SSD1306_CMD_SET_COM_CONFIG     0xDA
+#define SSD1306_CMD_SET_CLOCK_DIVIDE   0xD5
+#define SSD1306_CMD_SET_PRECHARGE      0xD9
 #define SSD1306_CMD_SET_VCOMM_DESELECT 0xDB
-#define SSD1306_CMD_SET_CHARGE_PUMP 0x8D //undocumented!?
-#define SSD1306_CMD_NOP 0xE3 //no operation
+#define SSD1306_CMD_SET_CHARGE_PUMP    0x8D //undocumented!?
+#define SSD1306_CMD_NOP                0xE3 //no operation
 
 //wrapper macros for commands
 #define SSD1306_SET_CONTRAST(c) SSD1306_CMD_SET_CONTRAST, (c)

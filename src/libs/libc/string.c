@@ -161,3 +161,81 @@ PURE MUST_CHECK char* strrchr(char *str, int character) {
 	}
 	return last;
 }
+
+long int strtol(const char *str, char **endptr, int base) {
+    while(isspace(*str)) str++;
+
+    //If no valid conversion could be performed, a zero value is returned (0L).
+    if(!*str) return 0L;
+    if(base != 0 && (base < 2 || base > 36)) return 0L;
+
+    long int result = 0, sign = 1;
+
+    //read sign
+    if(*str == '+') str++;
+    else if(*str == '-') { sign = -1; str++; }
+
+    //read base
+    if(!base && *str == '0') {
+        str++;
+        if(*str == 'x' || *str == 'X') { base = 16; str++; }
+        //nonstandard, but oh well
+        else if(*str == 'b' || *str == 'B') { base = 2; str++; }
+        else base = 8;
+    }
+    if(!base) base = 10;
+
+    //read as many digits as possible
+    while(*str) {
+        long int n;
+        char c = *(str++);
+        if(isdigit(c)) n = c - '0';
+        else if(isalpha(c)) {
+            if(c >= 'A' && c <= 'Z') n = (c - 'A') + 10;
+            else n = (c - 'a') + 10;
+        }
+        else break;
+        if(n >= base) break;
+        result = (result * base) + n;
+        //XXX check for overflow
+    }
+
+    //output pointer to next char
+    if(endptr) *endptr = (char*)&str[-1];
+    return result * sign;
+}
+
+unsigned long int strtoul(const char *str, char **endptr, int base) {
+    while(isspace(*str)) str++;
+
+    if(!*str) return 0L;
+    if(base != 0 && (base < 2 || base > 36)) return 0L;
+
+    unsigned long int result = 0;
+
+    //read base
+    if(!base && *str == '0') {
+        str++;
+        if(*str == 'x' || *str == 'X') { base = 16; str++; }
+        //nonstandard, but oh well
+        else if(*str == 'b' || *str == 'B') { base = 2; str++; }
+        else base = 8;
+    }
+    if(!base) base = 10;
+
+    while(*str) {
+        long int n;
+        char c = *(str++);
+        if(isdigit(c)) n = c - '0';
+        else if(isalpha(c)) {
+            if(c >= 'A' && c <= 'Z') n = (c - 'A') + 10;
+            else n = (c - 'a') + 10;
+        }
+        else break;
+        if(n >= base) break;
+        result = (result * base) + n;
+        //XXX check for overflow
+    }
+    if(endptr) *endptr = (char*)&str[-1];
+    return result;
+}
