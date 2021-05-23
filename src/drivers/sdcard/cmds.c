@@ -26,34 +26,25 @@ uint8_t *resp, size_t respSize, uint32_t timeout) {
         0, //CRC
     };
     data[5] = sdcardCalcCrc(data, 5);
-    //if(cmd == 16) data[5] = 0xFF;
 
-    //dummy bytes for timing
     spiClear(state->port);
-    //err = _sdSendDummyBytes(state, 3, timeout);
-    //if(err) return err;
 
     //Send command.
-    //#if SDCARD_DEBUG_PRINT
-    //    printf("SD: CMD%2d: ", data[0] - 64);
-    //    for(int i=0; i<6; i++) printf("%02X ", data[i]);
-    //    printf("  ");
-    //#endif
+    #if SDCARD_DEBUG_PRINT
+        printf("SD: CMD%2d: ", data[0] - 64);
+        for(int i=0; i<6; i++) printf("%02X ", data[i]);
+        printf("  ");
+    #endif
 
     for(int i=0; i<6; i++) {
         err = spiWrite(state->port, data[i], 1, timeout);
         if(err) {
-            //#if SDCARD_DEBUG_PRINT
-            //    printf("Byte %d err %d\r\n", i, err);
-            //#endif
+            #if SDCARD_DEBUG_PRINT
+                printf("Byte %d err %d\r\n", i, err);
+            #endif
             return err;
         }
     }
-
-    //Send dummy bytes and wait for transmission to finish.
-    err = _sdSendDummyBytes(state, 5, timeout);
-    if(!err) err = spiWaitTxDone(state->port, timeout);
-    if(err) return err;
 
     //Get response
     int respType;

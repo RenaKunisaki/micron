@@ -50,11 +50,11 @@ uint32_t timeout) {
     for(size_t i=0; i<size; i++) {
         if(millis() >= limit) return -ETIMEDOUT;
 
+        _sdSendDummyBytes(state, 1, 100);
         uint32_t r = 0xDEADBEEF;
         int err = spiRead(state->port, &r, timeout);
         if(err) return err;
         d[i] = r & 0xFF;
-        _sdSendDummyBytes(state, 1, 100);
     }
 
     return 0;
@@ -77,7 +77,7 @@ uint32_t timeout) {
     do {
         if(millis() >= limit) return -ETIMEDOUT;
         ok = 0;
-        uint8_t resp = 0xBB; //arbitrary dummy value
+        uint8_t resp = 0xFF; //arbitrary dummy value
         err = sdcardSendCommand(state, SD_CMD_READ_BLOCK, block, &resp, 1, timeout);
         if(err) return err;
         if(resp == 0x00) ok = 1;

@@ -1,6 +1,8 @@
 #ifndef _MICRON_HAL_MAIN_H_
 #define _MICRON_HAL_MAIN_H_
 
+#include "clocks/clocks.h"
+#include "memory/memory.h"
 #include "serial/serial.h"
 #include "gpio/gpio.h"
 #include "crc/crc.h"

@@ -50,6 +50,7 @@
 #define SD_RESP_IDLE          BIT(0)
 
 typedef struct {
+    //Mainly for internal use.
     //fields common to both v1 and v2
     //all must be unsigned int
     unsigned int cSize;                     //Device Size
@@ -89,6 +90,11 @@ typedef struct {
     uint8_t port; //which SPI port to use
     uint8_t pinCS; //which pin is card's CS/SS
     uint8_t cardVersion; //SD card protocol version
+    uint64_t cardSize; //capacity in bytes
+    uint64_t nSectors; //number of blocks
+    uint16_t sectorSize; //size in bytes
+    uint64_t accessSpeed; //in nanoseconds
+    uint64_t transferRate; //in bytes/sec
 } MicronSdCardState;
 
 typedef int(*MicronSdCardReadBlocksCb)(MicronSdCardState *state, const void *data);
@@ -107,8 +113,9 @@ int _sdSendCmd55(MicronSdCardState *state, uint32_t timeout);
 uint8_t sdcardCalcCrc(const void *data, size_t len);
 
 //csd.c
-int sdGetCSD(MicronSdCardState *state, uint32_t timeout, void *csd);
-int sdGetSize(MicronSdCardState *state, uint64_t *out, uint32_t timeout);
+int _sdGetCSD(MicronSdCardState *state, uint32_t timeout, void *csd);
+int _sdParseCSD(void *csdIn, SD_CSD *out);
+int sdReadInfo(MicronSdCardState *state, uint32_t timeout);
 
 //debug.c
 void _sdPrintStatus(uint8_t stat);
@@ -123,7 +130,7 @@ int sdReadBlocks(MicronSdCardState *state, uint32_t firstBlock,
     MicronSdCardReadBlocksCb callback, uint32_t timeout);
 
 //response.c
-int _sdRecvDummyBytes(MicronSdCardState *state, uint32_t timeout);
+int _sdWaitForResponse(MicronSdCardState *state, uint32_t timeout);
 int _sdGetRespR1(MicronSdCardState *state, uint8_t *resp, uint32_t timeout);
 int _sdGetRespR2(MicronSdCardState *state, uint8_t *resp, uint32_t timeout);
 int _sdGetRespR7(MicronSdCardState *state, uint8_t *resp, uint32_t timeout);

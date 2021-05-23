@@ -3,7 +3,7 @@ extern "C" {
     #include "sdcard.h"
 }
 
-int _sdRecvDummyBytes(MicronSdCardState *state, uint32_t timeout) {
+int _sdWaitForResponse(MicronSdCardState *state, uint32_t timeout) {
     /** Receive dummy bytes.
      *  @param state Card state.
      *  @param timeout Maximum time to wait, in milliseconds.
@@ -15,13 +15,13 @@ int _sdRecvDummyBytes(MicronSdCardState *state, uint32_t timeout) {
     while(1) { //receive dummy bytes
         if(millis() >= limit) return -ETIMEDOUT;
         uint32_t r = 0xDEADBEEF;
+        _sdSendDummyBytes(state, 1, timeout);
         int err = spiRead(state->port, &r, timeout);
         if(err) return err;
         //printf("%02X ", r);
         if((r & 0xFF) != 0xFF) {
             return r & 0xFF;
         }
-        _sdSendDummyBytes(state, 1, timeout);
     }
 }
 
@@ -32,7 +32,7 @@ int _sdGetRespR1(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
      *  @param timeout Maximum time to wait, in milliseconds.
      *  @return 0 on success, or negative error code on failure.
      */
-    int err = _sdRecvDummyBytes(state, timeout);
+    int err = _sdWaitForResponse(state, timeout);
     if(err < 0) {
         #if SDCARD_DEBUG_PRINT
             printf("SD: R1 Error %d\r\n", err);
@@ -43,7 +43,7 @@ int _sdGetRespR1(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
     //    printf("SD: R1 0x%02X\r\n", err & 0xFF);
     //#endif
     *resp = err & 0xFF;
-    _sdSendDummyBytes(state, 1, timeout);
+    //_sdSendDummyBytes(state, 1, timeout);
     return 0;
 }
 
@@ -56,7 +56,7 @@ int _sdGetRespR2(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
      *  @return 0 on success, or negative error code on failure.
      */
     int err;
-    err = _sdRecvDummyBytes(state, timeout);
+    err = _sdWaitForResponse(state, timeout);
     if(err < 0) {
         #if SDCARD_DEBUG_PRINT
             printf("SD: R2 Error %d\r\n", err);
@@ -101,7 +101,7 @@ int _sdGetRespR7(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
      *  @return 0 on success, or negative error code on failure.
      */
     int err;
-    err = _sdRecvDummyBytes(state, timeout);
+    err = _sdWaitForResponse(state, timeout);
     if(err < 0) {
         #if SDCARD_DEBUG_PRINT
             printf("SD: R7 Error %d\r\n", err);

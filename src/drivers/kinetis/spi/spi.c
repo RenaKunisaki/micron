@@ -3,6 +3,7 @@
 	extern "C" {
 #endif
 #include <micron.h>
+#include "baud.h"
 
 static uint8_t pcs[NUM_SPI];
 static volatile uint32_t *regCS[NUM_SPI];
@@ -61,6 +62,12 @@ MicronSpiModeEnum mode) {
     CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2); // SCK = 13 (PTC5)
     //SPI0_MCR = (SPI0_MCR & ~SPI_MCR_HALT) | SPI_MCR_CLR_RXF | SPI_MCR_CLR_TXF;
 
+    int err = kinetis_spiSetSpeed(port, speed);
+    if(err) return err;
+
+    err = kinetis_spiSetMode(port, mode);
+    if(err) return err;
+
     return 0;
 }
 
@@ -86,8 +93,6 @@ int kinetis_spiSetMode(uint32_t port, MicronSpiModeEnum mode) {
         SPI0_MCR |= SPI_MCR_MSTR;
         uint32_t ctar0 = SPI0_CTAR0 & ~(SPI_CTAR_CPOL | SPI_CTAR_CPHA);
         uint32_t ctar1 = SPI0_CTAR1 & ~(SPI_CTAR_CPOL | SPI_CTAR_CPHA);
-        SPI0_CTAR0 = ctar0 | flags;
-        SPI0_CTAR1 = ctar1 | flags;
 
         //XXX what's this about?
         if (mode & 0x01) {
@@ -97,15 +102,41 @@ int kinetis_spiSetMode(uint32_t port, MicronSpiModeEnum mode) {
             ctar0 |= (ctar0 & 0x0F) << 12;
             ctar1 |= (ctar1 & 0x0F) << 12;
         }
+
+        SPI0_CTAR0 = ctar0 | flags;
+        SPI0_CTAR1 = ctar1 | flags;
     }
     if(!paused) kinetis_spiPause(port, false);
     return 0;
 }
 
 int kinetis_spiSetSpeed(uint32_t port, uint32_t speed) {
+
+    uint32_t pbr, br, dbr, abr;
+    int err = kinetis_spiGetParamsForBaud(speed, &pbr, &br, &dbr, &abr);
+    if(err) return err;
+
     bool paused = kinetis_spiPause(port, true); //required to change other bits
-    SPI0_CTAR0 = (SPI0_CTAR0 & ~0xF) | speed;
-    SPI0_CTAR1 = (SPI0_CTAR1 & ~0xF) | speed;
+    uint32_t mask = ~(SPI_CTAR_PBR(  3) | SPI_CTAR_BR(15) | SPI_CTAR_DBR);
+    uint32_t val  =   SPI_CTAR_PBR(pbr) | SPI_CTAR_BR(br) |
+        (dbr ? SPI_CTAR_DBR : 0);
+    //printf("SPI: %d Hz => PBR=%d BR=%d DBR=%d = 0x%08X (actual speed %d Hz)\r\n",
+    //    speed, pbr, br, dbr, val, abr);
+
+    uint32_t ctar0 = (SPI0_CTAR0 & mask) | val;
+    uint32_t ctar1 = (SPI0_CTAR1 & mask) | val;
+
+    /* if(SPI0_MCR & SPI_CTAR_CPHA) {
+        ctar0 |= (ctar0 & 0x0F) << 8;
+        ctar1 |= (ctar1 & 0x0F) << 8;
+    } else {
+        ctar0 |= (ctar0 & 0x0F) << 12;
+        ctar1 |= (ctar1 & 0x0F) << 12;
+    } */
+
+    SPI0_CTAR0 = ctar0;
+    SPI0_CTAR1 = ctar1;
+
     if(!paused) kinetis_spiPause(port, false);
     return 0;
 }
@@ -150,17 +181,15 @@ int kinetis_spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout){
     uint32_t t = millis() + timeout;
     uint32_t pcsbits = pcs[port] << 16;
     uint32_t b = data & 0xFFFF;
+
+    //wait if FIFO full (TXCTR > 3)
+    while(((SPI0_SR) & (15 << 12)) > (3 << 12)) {
+        if(millis() >= t) return -ETIMEDOUT;
+        idle();
+    }
+
     if(pcsbits) {
         SPI0_PUSHR = b | pcsbits | (cont ? SPI_PUSHR_CONT : 0);
-        //wait if FIFO full (TXCTR > 3)
-        while(((SPI0_SR) & (15 << 12)) > (3 << 12)) {
-            if(millis() >= t) return -ETIMEDOUT;
-            idle();
-        }
-        //uint32_t r = SPI0_POPR;
-        //printf("%04X -> %04X (%c%c)\r\n", data, r, cont ? '-' : 'E',
-        //    gpioGetPinInput(15) ? 'D' : 'C');
-        //delayMS(100);
     } else {
         *regCS[port] = 0;
         SPI0_SR = SPI_SR_EOQF;

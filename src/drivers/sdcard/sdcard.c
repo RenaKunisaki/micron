@@ -8,15 +8,12 @@ int sdcardInit(MicronSdCardState *state) {
      *  @note You must initialize the following fields of `state`
      *   before calling this function: port, pinCS
      */
-    int err = spiInit(state->port, state->pinCS,
-        //XXX use proper macros for CPU speed
-        //This gives ~433Hz which is a little more than the 400Hz
-        //we're supposed to use, but works alright.
-        //Trying to go down to the next lowest speed, the card
-        //doesn't respond anymore...
-        SPI_CTAR_PBR(2) | SPI_CTAR_BR(14),
-        //0,
-        SPI_MODE_0);
+    //the spec calls for 400 Hz but we can't necessarily do that exact rate.
+    //at the default 72 MHz CPU speed, the closest is 366 Hz.
+    //but going below 400 can make some cards not respond, so we'll specify
+    //a bit higher to get the next-highest speed of 439, while still being
+    //as close as possible on other speeds.
+    int err = spiInit(state->port, state->pinCS, 420, SPI_MODE_0);
     if(err) return err;
     err = spiPause(state->port, false);
     if(err < 0) return err;
@@ -37,9 +34,10 @@ int sdcardReset(MicronSdCardState *state, uint32_t timeout) {
     #if SDCARD_DEBUG_PRINT
         printf("SD: send dummy bytes...\r\n");
     #endif
+    delayMS(1);
     for(int i=0; i<10; i++) spiWriteDummy(state->port, 0xFF, 100);
-    //for(int i=0; i<10; i++) spiWrite(state->port, 0xFF, 1, 100);
     spiWrite(state->port, 0xFF, 0, 100);
+    delayMS(1);
 
     //send CMD0
     #if SDCARD_DEBUG_PRINT

@@ -206,6 +206,9 @@ static inline void init_clocks() {
 
 
 static inline void init_clock_dividers() {
+    //XXX why these speeds? it seems like we can do 72MHz CPU and 72MHz bus
+    //without any problems, so why limit to 36?
+    
 	#if F_CPU == 168 MHZ /* { */
 		// 168 MHz core, 56 MHz bus, 33.6 MHz flash, USB = 168 * 2 / 7
 		SIM_CLKDIV1 = SIM_CLKDIV1_OUTDIV1(0) | SIM_CLKDIV1_OUTDIV2(2) | SIM_CLKDIV1_OUTDIV4(4);
