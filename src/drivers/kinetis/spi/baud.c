@@ -155,7 +155,7 @@ uint32_t *outBR, uint32_t *outDBR, uint32_t *outActualBaud) {
     }
 
     //given rate is too low or too high
-    printf("SPI: can't find params for baud %d\r\n", baud);
+    printf("SPI: can't find params for baud %ld\r\n", baud);
     return -ERANGE;
 }
 

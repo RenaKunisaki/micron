@@ -21,19 +21,21 @@ static FILE** std_fds[] = {&stdin, &stdout, &stderr};
  */
 
 int close(FILE *self) {
-	return self->cls->close(self);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->close(self);
 }
 
 
 int read(FILE *self, void *dest, size_t len) {
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
 	size_t count = 0;
 	char *destp = (char*)dest;
 	while(count < len) {
-		int r = self->cls->read(self, destp, len - count);
+		int r = cls->read(self, destp, len - count);
 		if(r < 0) return r;
 		count += r;
 		//if(r == 0) irqWait(); //XXX use a semaphore?
-		if(r == 0) self->cls->sync(self);
+		if(r == 0) cls->sync(self);
 		if(destp) destp += r;
 	}
 	return count;
@@ -41,46 +43,60 @@ int read(FILE *self, void *dest, size_t len) {
 
 
 int write(FILE *self, const void *src, size_t len) {
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
 	const uint8_t *srcp = (const uint8_t*)src;
 	size_t count = 0;
 	while(count < len) {
-		int r = self->cls->write(self, srcp, len - count);
+		int r = cls->write(self, srcp, len - count);
 		if(r < 0) return r;
 		count += r;
 		//if(r == 0) irqWait(); //XXX use a semaphore?
-		if(r == 0) self->cls->sync(self);
+		if(r == 0) cls->sync(self);
 		if(srcp) srcp += r;
 	}
 	return count;
 }
 
+int fseek(FILE *self, long int offset, int origin) {
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+    return cls->seek(self, offset, origin);
+}
+
 
 int tryRead(FILE *self, void *dest, size_t len) {
-	return self->cls->read(self, dest, len);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->read(self, dest, len);
 }
 
 int tryWrite(FILE *self, const void *src, size_t len) {
-	return self->cls->write(self, src, len);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->write(self, src, len);
 }
 
 int peek(FILE *self, void *dest, size_t len) {
-	return self->cls->peek(self, dest, len);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->peek(self, dest, len);
 }
 
 int getWriteBuf(FILE *self) {
-	return self->cls->getWriteBuf(self);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->getWriteBuf(self);
 }
 
 int sync(FILE *self) {
-	return self->cls->sync(self);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->sync(self);
 }
 
 int purge(FILE *self) {
-	return self->cls->purge(self);
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+	return cls->purge(self);
 }
 
 
 int readUntil(FILE *self, void *buf, size_t len, const char *chrs) {
+    MicronFileClass *cls = osGetFileClass(self->fileCls);
+    
 	//create a table of which characters to stop at.
 	char stop[256];
 	memset(stop, 0, sizeof(stop));
@@ -97,7 +113,7 @@ int readUntil(FILE *self, void *buf, size_t len, const char *chrs) {
 		//XXX better way to do this without reading one byte at a time or
 		//reading and discarding extra bytes?
 		char c=0;
-		int r = self->cls->read(self, &c, 1);
+		int r = cls->read(self, &c, 1);
 		if(r < 0) { //read failed, r is error code
 			*dst = '\0';
 			return r;
@@ -108,7 +124,7 @@ int readUntil(FILE *self, void *buf, size_t len, const char *chrs) {
 			if(stop[(unsigned char)c]) break;
 		}
 		//else irqWait(); //nothing was read. XXX use a semaphore?
-		else self->cls->sync(self);
+		else cls->sync(self);
 	}
 	*dst = '\0';
 	return count;

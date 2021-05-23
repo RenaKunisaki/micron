@@ -97,6 +97,8 @@ typedef struct {
     uint64_t transferRate; //in bytes/sec
 } MicronSdCardState;
 
+#include "filecls.h"
+
 typedef int(*MicronSdCardReadBlocksCb)(MicronSdCardState *state, const void *data);
 
 //cmds.c

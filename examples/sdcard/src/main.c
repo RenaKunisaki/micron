@@ -88,7 +88,7 @@ int init() {
 void hexdump(const uint8_t *data, uint32_t len) {
     printf("\r\n");
     for(uint32_t i=0; i<len; i += 16) {
-        printf("%04X", i);
+        printf("%04lX", i);
         for(uint32_t j=0; j<16; j++) {
             printf("%s%02X", (j&3) ? " " : "  ", data[i+j]);
         }
@@ -128,7 +128,7 @@ void cmd_setBaud(const char *param) {
         return;
     }
     int err = spiSetSpeed(sdcard.port, baud);
-    if(err) printf("Error %d\r\n");
+    if(err) printf("Error %d\r\n", err);
     else printf("OK\r\n");
 }
 
@@ -146,7 +146,7 @@ void cmd_speedTest(const char *param) {
         return;
     }
     bool ok = false;
-    for(int i=1; i<sizeof(buf); i++) {
+    for(size_t i=1; i<sizeof(buf); i++) {
         if(buf[i-1] != buf[i]) {
             ok = true;
             break;
@@ -166,9 +166,9 @@ void cmd_speedTest(const char *param) {
             unit++;
         }
 
-        printf("Try %9d Hz (%4d %cHz)... ", baud, val, units[unit]);
+        printf("Try %9ld Hz (%4ld %cHz)... ", baud, val, units[unit]);
         int err = spiSetSpeed(sdcard.port, baud);
-        if(err) { printf("spiSetSpeed error %d\r\n"); break; }
+        if(err) { printf("spiSetSpeed error %d\r\n", err); break; }
 
         for(int tries=0; tries<3; tries++) {
             //resetSD();
@@ -194,7 +194,7 @@ void cmd_speedTest(const char *param) {
                     }
                 }
                 if(ok) {
-                    printf("OK, %6dms, %d B/s\r\n", time, time / 512000);
+                    printf("OK, %6ldms, %ld B/s\r\n", time, time / 512000);
                     break;
                 }
             }
@@ -208,7 +208,7 @@ void cmd_speedTest(const char *param) {
         val /= 1000;
         unit++;
     }
-    printf("Fastest available speed for this card: %d %cHz (%d Hz)\r\n",
+    printf("Fastest available speed for this card: %ld %cHz (%ld Hz)\r\n",
         val, units[unit], baud);
     spiSetSpeed(sdcard.port, baud);
 }
@@ -257,7 +257,7 @@ int main() {
     char cmd[1024];
     memset(cmd, 0, sizeof(cmd));
 
-    int cmdPos = 0;
+    size_t cmdPos = 0;
     bool redraw = true;
     while(1) {
         idle();

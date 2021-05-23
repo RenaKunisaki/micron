@@ -6,6 +6,10 @@
 	extern "C" {
 #endif
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 //#define MAX_FD 8 //max files that can be open at once.
 #include "private.h"
 
@@ -61,6 +65,8 @@ int read(FILE *self, void *dest, size_t len);
  *    can be written without blocking.
  */
 int write(FILE *self, const void *src, size_t len);
+
+int fseek(FILE *self, long int offset, int origin);
 
 /** Read from a file without blocking.
  *  self: file to read.

@@ -4,6 +4,7 @@
 #include <micron.h>
 
 static FILE usb_file[USB_MAX_ENDPOINTS];
+static int8_t usbFileClsIdx = -1;
 
 static int usb_close(FILE *self) {
 	//nothing to do
@@ -31,6 +32,10 @@ static int usb_write(FILE *self, const void *src, size_t len) {
 	return usbTrySend(src, len, self->udata.u8);
 }
 
+static int usb_seek(FILE *self, long int offset, int origin) {
+	return -ENOTBLK;
+}
+
 static int usb_peek(FILE *self, void *dest, size_t len) {
 	//XXX TODO
 	return -ENOSYS;
@@ -51,10 +56,11 @@ static int usb_purge(FILE *self) {
 	return 0;
 }
 
-static micronFileClass usb_class = {
+static MicronFileClass usb_class = {
 	.close       = usb_close,
 	.read        = usb_read,
 	.write       = usb_write,
+	.seek        = usb_seek,
 	.peek        = usb_peek,
 	.getWriteBuf = usb_getWriteBuf,
 	.sync        = usb_sync,
@@ -62,19 +68,28 @@ static micronFileClass usb_class = {
 };
 
 
-FILE* openUSB(uint8_t endp, int *err) {
+FILE* openUSB(uint8_t endp, int *outErr) {
 	if(endp >= USB_MAX_ENDPOINTS) {
-		if(err) *err = -ENODEV;  //No such device
+		if(outErr) *outErr = -ENODEV;  //No such device
 		return NULL;
 	}
 	if(!usbEndpCfg[endp].config) { //endpoint isn't set up
-		if(err) *err = -EUNATCH; //Protocol driver not attached
+		if(outErr) *outErr = -EUNATCH; //Protocol driver not attached
 		return NULL;
 	}
 
-	usb_file[endp].cls      = &usb_class;
+    if(usbFileClsIdx < 0) {
+        int err = osRegisterFileClass(&usb_class);
+        if(err < 0) {
+            if(outErr) *outErr = err;
+            return NULL;
+        }
+        usbFileClsIdx = err;
+    }
+
+	usb_file[endp].fileCls  = usbFileClsIdx;
 	usb_file[endp].udata.u8 = endp;
-	if(err) *err = 0;
+	if(outErr) *outErr = 0;
 	return &usb_file[endp];
 }
 
