@@ -6,7 +6,7 @@ extern "C" {
 int8_t sdFileClsIdx = -1;
 
 int sdFileCls_close(FILE *self) {
-    //nothing to do
+    free(self);
     return 0;
 }
 
@@ -86,6 +86,7 @@ MicronFileClass sdFileCls = {
 	.close       = sdFileCls_close,
 	.read        = sdFileCls_read,
 	.write       = sdFileCls_write,
+	.seek        = sdFileCls_seek,
 	.peek        = sdFileCls_peek,
 	.getWriteBuf = sdFileCls_getWriteBuf,
 	.sync        = sdFileCls_sync,
@@ -100,6 +101,7 @@ FILE* sdOpenCard(MicronSdCardState *state, int *outErr) {
             *outErr = err;
             return NULL;
         }
+        sdFileClsIdx = err;
     }
     FILE *res = (FILE*)malloc(sizeof(FILE));
     if(!res) {

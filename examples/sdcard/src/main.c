@@ -54,7 +54,7 @@ int initSD() {
 
 int init() {
     gpioSetPinMode(13, PIN_MODE_OUTPUT); //onboard LED
-    blink(1);
+    //blink(1);
 
     //init serial
     int err = 0;
@@ -138,9 +138,7 @@ void cmd_speedTest(const char *param) {
     //read sector at low speed
     printf("Read sector 0 at low speed (wait!)...\r\n");
     uint8_t buf[512]; //XXX check card sector size
-    gpioSetPinOutput(13, 1);
     int err = sdReadBlock(&sdcard, 0, buf, 20000);
-    gpioSetPinOutput(13, 0);
     if(err) {
         printf("Error %d\r\n", err);
         return;
@@ -174,12 +172,10 @@ void cmd_speedTest(const char *param) {
             //resetSD();
             //delayMS(250);
 
-            gpioSetPinOutput(13, 1);
             memset(buf2, 0xEE, sizeof(buf2));
             uint32_t time = millis();
             err = sdReadBlock(&sdcard, 0, buf2, 10000);
             time = millis() - time;
-            gpioSetPinOutput(13, 0);
             if(err) {
                 printf("sdReadBlock error %d\r\n", err);
             }
@@ -217,6 +213,28 @@ void cmd_reset(const char *param) {
     resetSD();
 }
 
+void cmd_list(const char *param) {
+    uint32_t partNo = strtoul(param, (char**)&param, 0);
+    MicronPartition partition;
+    int err = 0;
+    FILE *card = sdOpenCard(&sdcard, &err);
+    if(!card) {
+        printf("sdOpenCard error %d\r\n", err);
+        return;
+    }
+
+    err = ioGetPartition(card, partNo, &partition);
+    if(err < 0) {
+        printf("ioGetPartition error %d\r\n", err);
+        close(card);
+        return;
+    }
+
+    printf("Partition sector 0x%llX, size 0x%llX, type 0x%X\r\n",
+        partition.sector, partition.size, partition.type);
+    close(card);
+}
+
 static struct {
 	const char *cmd;
 	void(*func)(const char*);
@@ -226,6 +244,7 @@ static struct {
 	{"baud",      cmd_setBaud},
     {"speedtest", cmd_speedTest},
     {"reset",     cmd_reset},
+    {"ls",        cmd_list},
 	{NULL, NULL}
 };
 
@@ -244,7 +263,9 @@ void doCommand(const char *buf) {
 	for(int i=0; commands[i].cmd != NULL; i++) {
 		const char *param = strcmpCmd(buf, commands[i].cmd);
 		if(param) {
+            gpioSetPinOutput(13, 1);
 			commands[i].func(param);
+            gpioSetPinOutput(13, 0);
 			return;
 		}
 	}

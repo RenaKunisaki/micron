@@ -96,7 +96,7 @@ int purge(FILE *self) {
 
 int readUntil(FILE *self, void *buf, size_t len, const char *chrs) {
     MicronFileClass *cls = osGetFileClass(self->fileCls);
-    
+
 	//create a table of which characters to stop at.
 	char stop[256];
 	memset(stop, 0, sizeof(stop));

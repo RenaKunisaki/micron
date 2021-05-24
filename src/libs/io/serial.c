@@ -63,7 +63,7 @@ FILE* openSerial(uint8_t port, int *outErr) {
 	}
 	//if(!uart_state[port]) return -EUNATCH; //Protocol driver not attached
 		//(i.e. port isn't set up)
-
+    
     if(serialFileClsIdx < 0) {
         int err = osRegisterFileClass(&serial_class);
         if(err < 0) {

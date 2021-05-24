@@ -188,7 +188,7 @@ fat32_dirent *out, uint32_t timeout) {
 
         printf("  Start cluster: 0x%04X%04X\r\n",
             out->startClusterHi, out->startClusterLo);
-        printf("  Size:          0x%08X\r\n", out->size);
+        printf("  Size:          0x%08lX\r\n", out->size);
     #endif
 
     return 0;
@@ -199,8 +199,8 @@ int fatReadDir(FILE *blkdev, fat32_mbr *mbr, int idx, micronDirent *out,
 uint32_t timeout) {
     int err;
     fat32_dirent dir;
-    uint16_t year;
-    uint8_t month, day, hour, minute, second;
+    //uint16_t year;
+    //uint8_t month, day, hour, minute, second;
     char longName[2048];
     longName[0] = '\0';
 

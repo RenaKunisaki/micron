@@ -12,6 +12,7 @@
 
 //#define MAX_FD 8 //max files that can be open at once.
 #include "private.h"
+#include "partition.h"
 
 /** Open a serial UART as a file. The port must have been previously configured
  *  by calling serialInit().

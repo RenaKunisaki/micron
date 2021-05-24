@@ -3,7 +3,7 @@ extern "C" {
     #include "private.h"
 }
 
-SECTION("bss") MicronFileClass *micronFileClasses[MAX_FILE_CLASSES];
+SECTION(".bss") MicronFileClass *micronFileClasses[MAX_FILE_CLASSES];
 
 int osRegisterFileClass(MicronFileClass *cls) {
     for(int i=0; i<MAX_FILE_CLASSES; i++) {
