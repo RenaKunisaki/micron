@@ -45,16 +45,19 @@ int sdFileCls_seek(FILE *self, long int offset, int origin) {
     MicronSdCardState *state = (MicronSdCardState*)self->udata.ptr;
     switch(origin) {
         case 0: //SEEK_SET
+            //printf("SEEK_SET to 0x%llX, size 0x%llX\r\n", offset, state->cardSize);
             if((uint64_t)offset >= state->cardSize) return -ERANGE;
             self->offset = offset;
             return 0;
 
         case 1: //SEEK_CUR
-        if((uint64_t)(self->offset + offset) >= state->cardSize) return -ERANGE;
+            //printf("SEEK_CUR by 0x%llX, size 0x%llX\r\n", offset, state->cardSize);
+            if((uint64_t)(self->offset + offset) >= state->cardSize) return -ERANGE;
             self->offset += offset;
             return 0;
 
         case 2: //SEEK_END
+            //printf("SEEK_END by 0x%llX, size 0x%llX\r\n", offset, state->cardSize);
             if((uint64_t)offset >= state->cardSize) return -ERANGE;
             self->offset = state->cardSize - offset;
             return 0;

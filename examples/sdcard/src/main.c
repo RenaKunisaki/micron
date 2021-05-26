@@ -2,6 +2,7 @@
  */
 #include <micron.h>
 #include <drivers/sdcard/sdcard.h>
+#include <drivers/fs/fat/fat.h>
 
 MicronSdCardState sdcard;
 
@@ -27,7 +28,7 @@ int resetSD() {
     if(err) return err;
 
     printf("SD get info... ");
-    err = sdReadInfo(&sdcard, 1000);
+    err = sdReadInfo(&sdcard, 5000);
     printf("%d\r\n", err);
     if(err) {
         printf("SD get info fail %d\r\n", err);
@@ -35,6 +36,9 @@ int resetSD() {
     }
 
     printf("SD size: %lld MB\r\n", sdcard.cardSize / 1048576LL);
+    //in theory we can go up to 25MHz, but in practice I get errors
+    //at somewhere around 20MHz, probably because of my shoddy wiring.
+    spiSetSpeed(sdcard.port, 15000000);
     return 0;
 }
 
@@ -78,6 +82,7 @@ int init() {
     printf("RAM: %lld KB  ", val / 1024LL);
     osGetMemorySize(MICRON_MEM_MAIN_ROM, &val);
     printf("ROM: %lld KB\r\n", val / 1024LL);
+    delayMS(1000);
 
     printf("Starting...\r\n");
     err = initSD();
@@ -215,6 +220,7 @@ void cmd_reset(const char *param) {
 
 void cmd_list(const char *param) {
     uint32_t partNo = strtoul(param, (char**)&param, 0);
+    printf("Read partition %ld\r\n", partNo);
     MicronPartition partition;
     int err = 0;
     FILE *card = sdOpenCard(&sdcard, &err);
@@ -230,8 +236,42 @@ void cmd_list(const char *param) {
         return;
     }
 
-    printf("Partition sector 0x%llX, size 0x%llX, type 0x%X\r\n",
+    printf("Partition sector 0x%llX, size 0x%llX, type 0x%lX\r\n",
         partition.sector, partition.size, partition.type);
+
+    fat32_mbr mbr;
+    err = fatGetMBR(card, partition.sector, &mbr, 10000);
+    if(err < 0) {
+        printf("fatGetMBR error %d\r\n", err);
+        close(card);
+        return;
+    }
+
+    fat32_fsinfo fsInfo;
+    err = fatGetFsInfo(card, &mbr, &fsInfo, 10000);
+    if(err < 0) {
+        printf("fatGetInfo error %d\r\n", err);
+        close(card);
+        return;
+    }
+    //XXX do something with fsInfo
+
+    fatGetInfo(card, partition.sector, 10000);
+
+    int iFile = 0;
+    while(true) {
+        micronDirent dir;
+        printf("Read dirent %d\r\n", iFile);
+        err = fatReadDir(card, &mbr, iFile, &dir, 10000);
+        if(err == -ENOENT) break;
+        else if(err < 0) {
+            printf("fatReadDir error %d\r\n", err);
+            break;
+        }
+        else iFile = err; //returns next idx
+    }
+
+    printf("Done\r\n");
     close(card);
 }
 
@@ -266,6 +306,7 @@ void doCommand(const char *buf) {
             gpioSetPinOutput(13, 1);
 			commands[i].func(param);
             gpioSetPinOutput(13, 0);
+            printf("\r\n");
 			return;
 		}
 	}

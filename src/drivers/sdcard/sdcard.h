@@ -14,7 +14,7 @@
 	extern "C" {
 #endif
 
-#define SDCARD_DEBUG_PRINT 1
+#define SDCARD_DEBUG_PRINT 0
 #include <drivers/kinetis/spi/spi.h>
 
 //some cards allow to change this, others don't.

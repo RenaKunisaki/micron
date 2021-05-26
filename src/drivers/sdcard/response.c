@@ -14,9 +14,11 @@ int _sdWaitForResponse(MicronSdCardState *state, uint32_t timeout) {
     uint32_t limit = millis() + timeout;
     while(1) { //receive dummy bytes
         if(millis() >= limit) return -ETIMEDOUT;
+        //irqDisable();
         uint32_t r = 0xDEADBEEF;
         _sdSendDummyBytes(state, 1, timeout);
         int err = spiRead(state->port, &r, timeout);
+        //irqEnable();
         if(err) return err;
         //printf("%02X ", r);
         if((r & 0xFF) != 0xFF) {

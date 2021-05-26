@@ -50,12 +50,14 @@ uint32_t timeout) {
     for(size_t i=0; i<size; i++) {
         if(millis() >= limit) return -ETIMEDOUT;
 
-        _sdSendDummyBytes(state, 1, 100);
         uint32_t r = 0xDEADBEEF;
+        _sdSendDummyBytes(state, 1, 100);
         int err = spiRead(state->port, &r, timeout);
         if(err) return err;
         d[i] = r & 0xFF;
+        //printf("\x1B[31m%02X\x1B[0m ", r & 0xFF);
     }
+    //_sdSendDummyBytes(state, 1, 100);
 
     return 0;
 }

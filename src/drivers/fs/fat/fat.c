@@ -18,13 +18,18 @@ uint8_t *second) {
 
 int _readSector(FILE *blkdev, uint64_t sector, void *out) {
     int err = fseek(blkdev, sector * FAT_SECTOR_SIZE, SEEK_SET);
-    if(err) return err;
+    if(err < 0) {
+        #if FAT_DEBUG_PRINT
+            printf("FAT: seek to sector 0x%llX failed: %d\r\n", sector, err);
+        #endif
+        return err;
+    }
     return read(blkdev, out, FAT_SECTOR_SIZE);
 }
 
 int fatGetMBR(FILE *blkdev, uint64_t sector, fat32_mbr *out, uint32_t timeout) {
     int err = _readSector(blkdev, sector, out);
-    if(err) return err;
+    if(err < 0) return err;
 
     if(out->mbrSig != 0xAA55) {
         #if FAT_DEBUG_PRINT
@@ -80,7 +85,12 @@ int fatGetFsInfo(FILE *blkdev, fat32_mbr *mbr, fat32_fsinfo *out,
 uint32_t timeout) {
     int err = _readSector(blkdev,
         mbr->fsInfoSector + mbr->_micron_startSector, out);
-    if(err) return err;
+    if(err < 0) {
+        #if FAT_DEBUG_PRINT
+            printf("FAT: Read MBR sector failed: %d\r\n", err);
+        #endif
+        return err;
+    }
 
     if(out->mbrSig != 0xAA55) {
         #if FAT_DEBUG_PRINT
@@ -113,7 +123,23 @@ int fatGetNextCluster(FILE *blkdev, fat32_mbr *mbr, int cluster, uint32_t timeou
             cluster, mapSector, mbr->_micron_startSector, mbr->reservedSectors);
     #endif
     int err = _readSector(blkdev, mapSector, map);
-    if(err) return err;
+    if(err < 0) {
+        #if FAT_DEBUG_PRINT
+            printf("FAT: Read cluster map sector failed: %d\r\n", err);
+        #endif
+        return err;
+    }
+
+
+    #if FAT_DEBUG_PRINT
+        printf("FAT: Cluster map at sector %d:\r\n", cluster);
+        for(int i=0; i<FAT_SECTOR_SIZE/4; i += 4) {
+            for(int j=0; j<4; j++) {
+                printf("%08X ", map[i+j]);
+            }
+            printf("\r\n");
+        }
+    #endif
 
     int idx = cluster % (FAT_SECTOR_SIZE / 4);
     int r = map[idx] & 0x0FFFFFFF;
@@ -144,12 +170,12 @@ fat32_dirent *out, uint32_t timeout) {
     //read the entry
     uint8_t buffer[FAT_SECTOR_SIZE];
     int err = _readSector(blkdev, dataSector, buffer);
-    if(err) return err;
+    if(err < 0) return err;
 
     uint32_t bPos = (idx * sizeof(fat32_dirent)) % FAT_SECTOR_SIZE;
     memcpy(out, &buffer[bPos], sizeof(fat32_dirent));
 
-    #if FAT_DEBUG_PRINT
+    #if 0 && FAT_DEBUG_PRINT
         char shortName[16], shortExt[4];
         memset(shortName, 0, sizeof(shortName));
         memset(shortExt,  0, sizeof(shortExt));
@@ -267,7 +293,7 @@ uint32_t offset, uint32_t size, void *out, uint32_t timeout) {
 
         if(mapSector != prevSector) {
             err = _readSector(blkdev, mapSector, map);
-            if(err) return err;
+            if(err < 0) return err;
         }
         prevSector = mapSector;
 
@@ -285,7 +311,7 @@ uint32_t offset, uint32_t size, void *out, uint32_t timeout) {
         uint64_t sector = ((cluster * clusterSize) / FAT_SECTOR_SIZE) + dataSector;
         //printf("Read cluster %d => sector 0x%08llX\r\n", cluster, sector);
         err = _readSector(blkdev, sector, buffer);
-        if(err) return err;
+        if(err < 0) return err;
         memcpy((void*)&dest[destOffs], buffer, MIN(size, (size_t)FAT_SECTOR_SIZE));
         destOffs += MIN(size, (size_t)FAT_SECTOR_SIZE);
 
@@ -320,7 +346,7 @@ int fatGetInfo(FILE *blkdev, uint64_t sector, uint32_t timeout) {
     int idx = 0;
 
     //printf("FileName.Ext Attribs  Ex  FileSize Created                Accessed   Modified            1stCluster LongName\r\n");
-    printf("Attribs   FileSize 1stCluster Name\r\n");
+    printf("Attribs      FileSize 1stCluster NextClustr Name\r\n");
     while(1) {
         micronDirent dir;
         err = fatReadDir(blkdev, &mbr, idx, &dir, timeout);
@@ -328,7 +354,7 @@ int fatGetInfo(FILE *blkdev, uint64_t sector, uint32_t timeout) {
         else if(err < 0) return err;
         else idx = err; //returns next index
 
-        printf("%c%c%c%c%c%c%c%c %9llu 0x%08llX %s\r\n",
+        printf("%c%c%c%c%c%c%c%c %12llu 0x%08llX 0x%08X ",
             (dir.attributes & FAT_ATTR_READONLY)     ? 'R' : '-',
             (dir.attributes & FAT_ATTR_HIDDEN)       ? 'H' : '-',
             (dir.attributes & FAT_ATTR_SYSTEM)       ? 'S' : '-',
@@ -337,7 +363,13 @@ int fatGetInfo(FILE *blkdev, uint64_t sector, uint32_t timeout) {
             (dir.attributes & FAT_ATTR_ARCHIVE)      ? 'A' : '-',
             (dir.attributes & FAT_ATTR_DEVICE)       ? 'V' : '-',
             (dir.attributes & 0x80)                  ? 'X' : '-',
-            dir.size, dir.cluster, dir.name);
+            dir.size, dir.cluster, idx);
+        for(int i=0; dir.name[i]; i++) {
+            char c = dir.name[i];
+            if(c >= 0x20 && c <= 0x7E) putc(c, stdout);
+            else printf("\\x%02X", c);
+        }
+        printf("\r\n");
 
         /*
         fatDecodeDate(dir.createDate, &year, &month, &day);
@@ -358,7 +390,7 @@ int fatGetInfo(FILE *blkdev, uint64_t sector, uint32_t timeout) {
             dir.startClusterHi, dir.startClusterLo, longName);
         */
 
-        uint8_t buffer[512];
+        /* uint8_t buffer[512];
         int r = fatReadFile(blkdev, &mbr, &dir, 0, 512, buffer, timeout);
         printf("read: %d: ", r);
         for(int i=0; i<16; i++) {
@@ -366,7 +398,7 @@ int fatGetInfo(FILE *blkdev, uint64_t sector, uint32_t timeout) {
             if(c < 0x20 || c > 0x7E) printf("\\x%02X", c);
             else printf("%c", c);
         }
-        printf("\r\n");
+        printf("\r\n"); */
     }
 
     return 0;
