@@ -39,7 +39,7 @@ uint32_t timeout) {
     int err, ok = 0;
     do {
         if(millis() >= limit) return -ETIMEDOUT;
-        uint8_t resp = 0xBB;
+        uint8_t resp = 0x00; //arbitrary dummy value
         err = _sdGetRespR1(state, &resp, timeout);
         if(err) return err;
         if(resp == 0xFE) ok = 1;
@@ -47,15 +47,17 @@ uint32_t timeout) {
 
     //Receive the data
     uint8_t *d = (uint8_t*)dest;
-    for(size_t i=0; i<size; i++) {
+    for(size_t i=0; i<size; i += SPI_RX_BUFSIZE) {
         if(millis() >= limit) return -ETIMEDOUT;
 
-        uint32_t r = 0xDEADBEEF;
-        _sdSendDummyBytes(state, 1, 100);
-        int err = spiRead(state->port, &r, timeout);
-        if(err) return err;
-        d[i] = r & 0xFF;
+        //use rx buf size here, since each dummy byte sent
+        //equals one byte received.
+        size_t n = MIN(SPI_RX_BUFSIZE, size-i);
+        _sdSendDummyBytes(state, n, 100);
+        int err = spiRead(state->port, d, n, timeout);
+        if(err < 0) return err;
         //printf("\x1B[31m%02X\x1B[0m ", r & 0xFF);
+        d += SPI_RX_BUFSIZE;
     }
     //_sdSendDummyBytes(state, 1, 100);
 
@@ -83,10 +85,37 @@ uint32_t timeout) {
         err = sdcardSendCommand(state, SD_CMD_READ_BLOCK, block, &resp, 1, timeout);
         if(err) return err;
         if(resp == 0x00) ok = 1;
+        printf("ReadBlock resp %02X\r\n", resp);
         if(resp & SD_RESP_PARAM_ERR) return -ERANGE;
     } while(!ok);
 
-    return _sdWaitForData(state, dest, SD_BLOCK_SIZE, timeout);
+    err = _sdWaitForData(state, dest, SD_BLOCK_SIZE, timeout);
+    if(err < 0) return err;
+
+    static uint32_t lastCrc = 0, lastBlock = 0xFFFFFFFF;
+    static uint8_t lastData[SD_BLOCK_SIZE];
+    uint32_t crc = crc32(dest, SD_BLOCK_SIZE);
+    if(block == lastBlock) {
+        if(crc != lastCrc) {
+            printf("CRC CHANGED, block %9d, %08X -> %08X\r\n", block, lastCrc, crc);
+            for(int i=0; i<SD_BLOCK_SIZE; i += 16) {
+                printf("\x1B[32mOLD %04X ", i);
+                for(int j=0; j<16; j++) {
+                    printf("%02X ", lastData[i+j]);
+                }
+                printf("\r\n\x1B[31mNEW %04X ", i);
+                for(int j=0; j<16; j++) {
+                    printf("%02X ", ((uint8_t*)dest)[i+j]);
+                }
+                printf("\x1B[0m\r\n");
+            }
+        }
+        else printf("CRC OK (%08X, block %9d)\r\n", crc, block);
+    }
+    lastBlock = block;
+    memcpy(lastData, dest, SD_BLOCK_SIZE);
+    lastCrc = crc;
+    return err;
 }
 
 

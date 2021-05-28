@@ -15,6 +15,18 @@ MicronSpiModeEnum mode) {
      *   frame size, etc as needed.
      */
     if(port > NUM_SPI) return -ENODEV;
+    if(_spiState[port] != NULL) return 0; //already init
+
+	//init state
+	_spiState[port] = (MicronSpiState*)malloc(sizeof(MicronSpiState));
+	if(_spiState[port] == NULL) return -ENOMEM;
+    _spiState[port]->pinCS        = pinCS;
+	_spiState[port]->transmitting = 0;
+	_spiState[port]->txbuf.head   = 0;
+	_spiState[port]->txbuf.tail   = 0;
+	_spiState[port]->rxbuf.head   = 0;
+	_spiState[port]->rxbuf.tail   = 0;
+
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiInit(port, pinCS, speed, mode);
 
@@ -24,6 +36,31 @@ MicronSpiModeEnum mode) {
     #else
         return -ENOSYS;
     #endif
+}
+
+int spiShutdown(uint32_t port) {
+    /** Shut down specified SPI, if it's enabled.
+     *  @param port Which SPI.
+     *  @return 0 on success, or negative error code.
+     */
+    if(port >= NUM_SPI) return -ENODEV; //No such device
+    if(_spiState[port] == NULL) return 0; //already shutdown
+
+    int err = 0;
+    #if defined(MCU_BASE_KINETIS)
+        err = kinetis_spiShutdown(port);
+
+    #elif defined(MCU_BASE_IMX)
+        return -ENOSYS; //XXX
+
+    #else
+        return -ENOSYS;
+    #endif
+
+    if(err) return err;
+    free(_spiState[port]);
+    _spiState[port] = NULL;
+    return 0;
 }
 
 int spiPause(uint32_t port, bool pause) {
@@ -99,17 +136,19 @@ int spiSetFrameSize(uint32_t port, uint32_t size) {
     #endif
 }
 
-int spiWriteDummy(uint32_t port, uint32_t data, uint32_t timeout) {
-    /** Send a dummy frame to SPI.
+int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count) {
+    /** Send dummy frames to SPI.
      *  @param port Which SPI port to use.
      *  @param data Data to send.
-     *  @param timeout Maximum time to wait, in milliseconds.
-     *  @return 0 on success, or a negative error code on failure.
+     *  @param count Number of frames to send.
+     *  @return Number of frames (not bytes) queued (which may be as low as
+     *   zero if the buffer is full), or negative error code.
      *  @note This is the same as `spiWrite`, but does not assert CS.
+     *   The same data is used for every frame.
      */
     if(port > NUM_SPI) return -ENODEV;
     #if defined(MCU_BASE_KINETIS)
-        return kinetis_spiWriteDummy(port, data, timeout);
+        return kinetis_spiWriteDummy(port, data, count);
 
     #elif defined(MCU_BASE_IMX)
         return -ENOSYS; //XXX
@@ -119,17 +158,18 @@ int spiWriteDummy(uint32_t port, uint32_t data, uint32_t timeout) {
     #endif
 }
 
-int spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout) {
-    /** Send a frame to SPI.
+int spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
+    /** Send data to SPI.
      *  @param port Which SPI port to use.
      *  @param data Data to send.
+     *  @param len Number of frames (not bytes) to send.
      *  @param cont Whether to keep CS asserted.
-     *  @param timeout Maximum time to wait, in milliseconds.
-     *  @return 0 on success, or a negative error code on failure.
+     *  @return Number of frames (not bytes) queued (which may be as low as
+     *   zero if the buffer is full), or negative error code.
      */
     if(port > NUM_SPI) return -ENODEV;
     #if defined(MCU_BASE_KINETIS)
-        return kinetis_spiWrite(port, data, cont, timeout);
+        return kinetis_spiWrite(port, data, len, cont);
 
     #elif defined(MCU_BASE_IMX)
         return -ENOSYS; //XXX
@@ -139,17 +179,18 @@ int spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout) {
     #endif
 }
 
-int spiRead(uint32_t port, uint32_t *out, uint32_t timeout) {
-    /** Receive a frame from SPI.
+int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
+    /** Receive data from SPI.
      *  @param port Which SPI port to use.
      *  @param out Destination buffer.
+     *  @param len Maximum frames (not bytes) to receive.
      *  @param timeout Maximum time to wait, in milliseconds.
-     *  @return 0 on success, or a negative error code on failure.
-     *  @note The amount of data written to `out` depends on the frame size.
+     *  @return Number of frames (not bytes) received (which may be as low as
+     *   zero if the buffer is empty), or negative error code.
      */
     if(port > NUM_SPI) return -ENODEV;
     #if defined(MCU_BASE_KINETIS)
-        return kinetis_spiRead(port, out, timeout);
+        return kinetis_spiRead(port, out, len, timeout);
 
     #elif defined(MCU_BASE_IMX)
         return -ENOSYS; //XXX
@@ -182,6 +223,7 @@ int spiClear(uint32_t port) {
      *  @param port Which SPI port to use.
      *  @return 0 on success, or a negative error code on failure.
      */
+    //XXX do something with buffers, if we even need this?
     if(port > NUM_SPI) return -ENODEV;
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiClear(port);

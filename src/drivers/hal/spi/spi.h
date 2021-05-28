@@ -16,14 +16,50 @@ typedef enum {
     SPI_MODE_CONT_SCK = BIT(3), //continuous clock
 } MicronSpiModeEnum;
 
+#ifndef SPI_TX_BUFSIZE
+#define SPI_TX_BUFSIZE 64
+#endif
+#ifndef SPI_RX_BUFSIZE
+#define SPI_RX_BUFSIZE 64
+#endif
+
+typedef struct {
+    uint8_t pinCS;
+	volatile int transmitting : 1; //is this port currently transmitting?
+	struct {
+        //for simplicity's sake this is just the entire PUSHR value.
+        //that lets us control CS and such, and do up to 16-bit frame size
+        //(the maximum supported by hardware).
+        //maybe we'll need to modify this somewhat if other hardware doesn't
+        //have the same features, but application code shouldn't need to be
+        //concerned with the details of this structure.
+		volatile uint32_t data[SPI_TX_BUFSIZE];
+		#if SPI_TX_BUFSIZE > 255
+			volatile uint16_t head, tail;
+		#else
+			volatile uint8_t  head, tail;
+		#endif
+	} txbuf;
+	struct {
+		volatile uint16_t data[SPI_RX_BUFSIZE];
+		#if SPI_RX_BUFSIZE > 255
+			volatile uint16_t head, tail;
+		#else
+			volatile uint8_t  head, tail;
+		#endif
+	} rxbuf;
+} MicronSpiState;
+
+extern MicronSpiState *_spiState[NUM_SPI];
+
 int spiInit(uint32_t port, uint32_t pinCS, uint32_t speed, MicronSpiModeEnum mode);
 int spiPause(uint32_t port, bool pause);
 int spiSetMode(uint32_t port, MicronSpiModeEnum mode);
 int spiSetSpeed(uint32_t port, uint32_t speed);
 int spiSetFrameSize(uint32_t port, uint32_t size);
-int spiWrite(uint32_t port, uint32_t data, bool cont, uint32_t timeout);
-int spiWriteDummy(uint32_t port, uint32_t data, uint32_t timeout);
-int spiRead(uint32_t port, uint32_t *out, uint32_t timeout);
+int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count);
+int spiWrite(uint32_t port, const void *data, uint32_t len, bool cont);
+int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout);
 int spiWaitTxDone(uint32_t port, uint32_t timeout);
 int spiClear(uint32_t port);
 

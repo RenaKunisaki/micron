@@ -21,6 +21,12 @@ void fail(int code) {
     osBootloader();
 }
 
+ISRFUNC void isrSystick(void) {
+    isrDefaultSystick();
+    if(millis() > 1000 && !gpioGetPinInput(23)) osReboot();
+}
+
+
 int resetSD() {
     printf("SD reset... ");
     int err = sdcardReset(&sdcard, 5000);
@@ -57,6 +63,7 @@ int initSD() {
 }
 
 int init() {
+    gpioSetPinMode(23, PIN_MODE_INPUT_PULLUP);
     gpioSetPinMode(13, PIN_MODE_OUTPUT); //onboard LED
     //blink(1);
 
@@ -346,9 +353,11 @@ int main() {
                 break;
 
             default:
-                if(cmdPos+1 < sizeof(cmd)) {
-                    cmd[cmdPos++] = chr;
-                    cmd[cmdPos] = 0;
+                if(chr >= 0x20 && chr <= 0x7E) {
+                    if(cmdPos+1 < sizeof(cmd)) {
+                        cmd[cmdPos++] = chr;
+                        cmd[cmdPos] = 0;
+                    }
                 }
                 redraw = true;
         }
