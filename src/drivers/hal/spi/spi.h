@@ -25,7 +25,7 @@ typedef enum {
 
 typedef struct {
     uint8_t pinCS;
-	volatile int transmitting : 1; //is this port currently transmitting?
+    //volatile int transmitting : 1; //is this port currently transmitting?
 	struct {
         //for simplicity's sake this is just the entire PUSHR value.
         //that lets us control CS and such, and do up to 16-bit frame size
@@ -48,6 +48,10 @@ typedef struct {
 			volatile uint8_t  head, tail;
 		#endif
 	} rxbuf;
+    //debug
+    uint32_t txCount, rxCount; //number of frames sent/rxd on wire
+    uint32_t txBufCnt, rxBufCnt; //num frames put into each buffer
+    uint32_t irqFillCnt, irqEmptyCnt, irqCnt; //Fill/Empty/Total IRQ count
 } MicronSpiState;
 
 extern MicronSpiState *_spiState[NUM_SPI];
@@ -57,9 +61,12 @@ int spiPause(uint32_t port, bool pause);
 int spiSetMode(uint32_t port, MicronSpiModeEnum mode);
 int spiSetSpeed(uint32_t port, uint32_t speed);
 int spiSetFrameSize(uint32_t port, uint32_t size);
-int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count);
+int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count, bool cs);
 int spiWrite(uint32_t port, const void *data, uint32_t len, bool cont);
+int spiWriteBlocking(uint32_t port, const void *data, uint32_t len, bool cont,
+uint32_t timeout);
 int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout);
+int spiReadBlocking(uint32_t port, void *out, uint32_t len, uint32_t timeout);
 int spiWaitTxDone(uint32_t port, uint32_t timeout);
 int spiClear(uint32_t port);
 

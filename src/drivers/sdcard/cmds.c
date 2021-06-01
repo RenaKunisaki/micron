@@ -26,7 +26,6 @@ uint8_t *resp, size_t respSize, uint32_t timeout) {
         0, //CRC
     };
     data[5] = sdcardCalcCrc(data, 5);
-
     spiClear(state->port);
 
     //Send command.
@@ -36,14 +35,22 @@ uint8_t *resp, size_t respSize, uint32_t timeout) {
         printf("  ");
     #endif
 
-    for(int i=0; i<6; i++) {
-        err = spiWrite(state->port, data[i], 1, timeout);
-        if(err) {
-            #if SDCARD_DEBUG_PRINT
-                printf("Byte %d err %d\r\n", i, err);
-            #endif
-            return err;
-        }
+    //sending dummy bytes before the command seems bizarre,
+    //but it works and it's what everyone else is doing,
+    //and the other way around doesn't work.
+    err = spiWriteDummy(state->port, 0xFF, 6, true);
+    if(err < 0) return err;
+
+    err = spiWrite(state->port, data, 6, false);
+    if(err < 0) return err;
+
+    err = spiWaitTxDone(state->port, timeout);
+    if(err < 0) {
+        #if SDCARD_DEBUG_PRINT
+            printf("SD: Send cmd %02X %02X %02X %02X %02X %02X: err %d\r\n",
+                data[0], data[1], data[2], data[3], data[4], data[5], err);
+        #endif
+        return err;
     }
 
     //Get response
@@ -75,18 +82,18 @@ uint8_t *resp, size_t respSize, uint32_t timeout) {
 }
 
 
-int _sdSendDummyBytes(MicronSdCardState *state, int count, uint32_t timeout) {
+int _sdSendDummyBytes(MicronSdCardState *state, int count, uint32_t timeout,
+bool cs) {
     /** Send some dummy bytes for timing.
      *  @param state Card state.
      *  @param count Number of dummy bytes to send.
      *  @param timeout Maximum time to wait, in milliseconds.
+     *  @param cs Whether to assert CS line.
      *  @return 0 on success, or negative error code on failure.
      */
-    while(count --> 0) {
-        int err = spiWrite(state->port, 0xFF, count, timeout);
-        if(err) return err;
-    }
-    return 0;
+    int err = spiWriteDummy(state->port, 0xFF, count, cs);
+    if(err < 0) return err;
+    return spiWaitTxDone(state->port, timeout);
 }
 
 
@@ -107,8 +114,9 @@ int _sdSendCmd0(MicronSdCardState *state, uint32_t timeout) {
         //XXX passing `timeout` here means we might end up waiting
         //longer than the actual timeout, eg if we already waited
         //90% of that time on previous attempts.
-        err = sdcardSendCommand(state, SD_CMD_RESET, 0, &resp, 1, 200);
+        err = sdcardSendCommand(state, SD_CMD_RESET, 0, &resp, 1, 5000);
         //if(err) return err;
+        //printf("CMD0 R=%02X E=%d\r\n", resp, err);
         if(resp == 0x01) ok = 1;
     } while(!ok);
     return 0;

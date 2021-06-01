@@ -14,7 +14,7 @@
 	extern "C" {
 #endif
 
-#define SDCARD_DEBUG_PRINT 0
+#define SDCARD_DEBUG_PRINT 1
 #include <drivers/kinetis/spi/spi.h>
 
 //some cards allow to change this, others don't.
@@ -104,7 +104,7 @@ typedef int(*MicronSdCardReadBlocksCb)(MicronSdCardState *state, const void *dat
 //cmds.c
 int sdcardSendCommand(MicronSdCardState *state, uint8_t cmd, uint32_t param,
     uint8_t *resp, size_t respSize, uint32_t timeout);
-int _sdSendDummyBytes(MicronSdCardState *state, int count, uint32_t timeout);
+int _sdSendDummyBytes(MicronSdCardState *state, int count, uint32_t timeout, bool cs);
 int _sdSendCmd0(MicronSdCardState *state, uint32_t timeout);
 int _sdSendCmd1(MicronSdCardState *state, uint32_t timeout);
 int _sdSendCmd8(MicronSdCardState *state, uint32_t timeout);

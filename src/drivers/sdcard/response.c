@@ -14,16 +14,28 @@ int _sdWaitForResponse(MicronSdCardState *state, uint32_t timeout) {
     uint32_t limit = millis() + timeout;
     while(1) { //receive dummy bytes
         if(millis() >= limit) return -ETIMEDOUT;
-        //irqDisable();
-        uint32_t r = 0xDEADBEEF;
-        _sdSendDummyBytes(state, 1, timeout);
-        int err = spiRead(state->port, &r, timeout);
-        //irqEnable();
-        if(err) return err;
-        //printf("%02X ", r);
-        if((r & 0xFF) != 0xFF) {
-            return r & 0xFF;
+        uint8_t r = 0xFF;
+        while(1) {
+            int err = _sdSendDummyBytes(state, 1, 10, true);
+            if(err < 0 && err != -ETIMEDOUT) return err;
+            irqWait();
+
+            err = spiReadBlocking(state->port, &r, 1, 50);
+            if(err < 0 && err != -ETIMEDOUT) {
+                #if SDCARD_DEBUG_PRINT
+                    printf("_sdWaitForResponse read err %d\r\n", err);
+                #endif
+                return err;
+            }
+            //printf("resp %d %02X\r\n", err, r);
+            if(err != -ETIMEDOUT) break;
+            if(millis() >= limit) return -ETIMEDOUT;
         }
+        if(r != 0xFF) {
+            //printf("%02X ", r);
+            return r;
+        }
+        //printf(".");
     }
 }
 
@@ -45,7 +57,7 @@ int _sdGetRespR1(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
     //    printf("SD: R1 0x%02X\r\n", err & 0xFF);
     //#endif
     *resp = err & 0xFF;
-    //_sdSendDummyBytes(state, 1, timeout);
+    //_sdSendDummyBytes(state, 1, timeout, true);
     return 0;
 }
 
@@ -67,21 +79,10 @@ int _sdGetRespR2(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
     }
 
     resp[0] = err & 0xFF;
-    for(size_t i=1; i<17; i++) {
-        uint32_t r = 0xDEADBEEF;
-        err = spiRead(state->port, &r, timeout);
-        if(err) {
-            #if SDCARD_DEBUG_PRINT
-                printf("SD: get R2 failed after %d bytes: ", i);
-                for(size_t j=0; j<i; j++) printf("%02X ", resp[j]);
-                printf("\r\n");
-            #endif
-            return err;
-        }
-        resp[i] = r & 0xFF;
-    }
-    _sdSendDummyBytes(state, 1, timeout);
+    err = spiReadBlocking(state->port, &resp[1], 16, timeout);
+    if(err < 0) return err;
 
+    _sdSendDummyBytes(state, 1, timeout, true);
 
     #if SDCARD_DEBUG_PRINT
         printf("SD: R2 Resp: ");
@@ -112,14 +113,9 @@ int _sdGetRespR7(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
     }
 
     resp[0] = err & 0xFF;
-    for(size_t i=1; i<5; i++) {
-        uint32_t r = 0xDEADBEEF;
-        err = spiRead(state->port, &r, timeout);
-        if(err) return err;
-        resp[i] = r & 0xFF;
-    }
-    _sdSendDummyBytes(state, 1, timeout);
-
+    err = spiReadBlocking(state->port, &resp[1], 5, timeout);
+    if(err < 0) return err;
+    _sdSendDummyBytes(state, 1, timeout, true);
 
     #if SDCARD_DEBUG_PRINT
         printf("SD: R7 Resp: %02X %02X %02X %02X %02X err %4d",

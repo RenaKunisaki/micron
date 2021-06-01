@@ -13,10 +13,7 @@ size_t len) {
     uint8_t port = state->port;
     if(state->spi) {
         gpioSetPinOutput(state->pinDC, isCmd ? 0 : 1);
-        for(size_t i=0; i<len; i++) {
-            err = spiWrite(port, data[i], (i+1) < len, 1000);
-            if(err) break;
-        }
+        err = spiWrite(port, data, len, false);
         if(!err) err = spiWaitTxDone(port, 1000);
     } else {
         uint8_t prefix = isCmd ? SSD1306_PREFIX_CMD : SSD1306_PREFIX_DATA;

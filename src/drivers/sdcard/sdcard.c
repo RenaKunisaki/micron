@@ -35,8 +35,10 @@ int sdcardReset(MicronSdCardState *state, uint32_t timeout) {
         printf("SD: send dummy bytes...\r\n");
     #endif
     delayMS(1);
-    for(int i=0; i<10; i++) spiWriteDummy(state->port, 0xFF, 100);
-    spiWrite(state->port, 0xFF, 0, 100);
+    spiWriteDummy(state->port, 0xFF, 10, false);
+    uint32_t _d = 0xFF;
+    spiWriteBlocking(state->port, &_d, 1, false, 1000);
+    spiWaitTxDone(state->port, 1000);
     delayMS(1);
 
     //send CMD0

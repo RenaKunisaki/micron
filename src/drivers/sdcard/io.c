@@ -52,14 +52,16 @@ uint32_t timeout) {
 
         //use rx buf size here, since each dummy byte sent
         //equals one byte received.
+        //frame size is 8 bits, so no need to worry about
+        //whether sizes are in bytes or in frames.
         size_t n = MIN(SPI_RX_BUFSIZE, size-i);
-        _sdSendDummyBytes(state, n, 100);
+        _sdSendDummyBytes(state, n, 100, true);
         int err = spiRead(state->port, d, n, timeout);
         if(err < 0) return err;
         //printf("\x1B[31m%02X\x1B[0m ", r & 0xFF);
         d += SPI_RX_BUFSIZE;
     }
-    //_sdSendDummyBytes(state, 1, 100);
+    //_sdSendDummyBytes(state, 1, 100, true);
 
     return 0;
 }
@@ -97,7 +99,7 @@ uint32_t timeout) {
     uint32_t crc = crc32(dest, SD_BLOCK_SIZE);
     if(block == lastBlock) {
         if(crc != lastCrc) {
-            printf("CRC CHANGED, block %9d, %08X -> %08X\r\n", block, lastCrc, crc);
+            printf("CRC CHANGED, block %9ld, %08lX -> %08lX\r\n", block, lastCrc, crc);
             for(int i=0; i<SD_BLOCK_SIZE; i += 16) {
                 printf("\x1B[32mOLD %04X ", i);
                 for(int j=0; j<16; j++) {
@@ -110,7 +112,7 @@ uint32_t timeout) {
                 printf("\x1B[0m\r\n");
             }
         }
-        else printf("CRC OK (%08X, block %9d)\r\n", crc, block);
+        else printf("CRC OK (%08lX, block %9ld)\r\n", crc, block);
     }
     lastBlock = block;
     memcpy(lastData, dest, SD_BLOCK_SIZE);
@@ -163,9 +165,9 @@ MicronSdCardReadBlocksCb callback, uint32_t timeout) {
         //wait for 0xFE response
         while(1) {
             gpioSetPinOutput(state->pinCS, 0);
-            SPI0_SR = SPI_SR_EOQF;
+            //SPI0_SR = SPI_SR_EOQF;
             SPI0_PUSHR = 0xFF;
-            int err = spiRead(state->port, &r, timeout);
+            int err = spiRead(state->port, &r, sizeof(uint32_t), timeout);
             if(err) return err;
             if((r & 0xFF) == 0xFE) break;
         }
@@ -173,8 +175,10 @@ MicronSdCardReadBlocksCb callback, uint32_t timeout) {
         //data followed by 2 byte CRC
         //not sure what we can do if the CRC is wrong...
         uint8_t data[SD_BLOCK_SIZE+2];
-        for(int i=0; i<SD_BLOCK_SIZE+2; i++)  {
-            //_sdSendDummyBytes(state, 1, 1);
+        int err = spiRead(state->port, data, sizeof(data), timeout);
+
+        /* for(int i=0; i<SD_BLOCK_SIZE+2; i++)  {
+            //_sdSendDummyBytes(state, 1, 1, true);
             //too slow, use this instead...
             gpioSetPinOutput(state->pinCS, 0);
             SPI0_SR = SPI_SR_EOQF;
@@ -182,7 +186,7 @@ MicronSdCardReadBlocksCb callback, uint32_t timeout) {
             int err = spiRead(state->port, &r, timeout);
             if(err) return err;
             data[i] = r & 0xFF;
-        }
+        } */
 
         if(err) return err;
         int stop = callback(state, data);

@@ -24,6 +24,22 @@ void fail(int code) {
 ISRFUNC void isrSystick(void) {
     isrDefaultSystick();
     if(millis() > 1000 && !gpioGetPinInput(23)) osReboot();
+
+    if(_spiState[0]) {
+        int head = _spiState[0]->txbuf.head;
+        int tail = _spiState[0]->txbuf.tail;
+        gpioSetPinOutput(15, head == tail); //empty
+        head++;
+        if(head >= SPI_TX_BUFSIZE) head = 0;
+        gpioSetPinOutput(16, head == tail); //full
+
+        head = _spiState[0]->rxbuf.head;
+        tail = _spiState[0]->rxbuf.tail;
+        gpioSetPinOutput(9, head == tail); //empty
+        head++;
+        if(head >= SPI_TX_BUFSIZE) head = 0;
+        gpioSetPinOutput(8, head == tail); //full
+    }
 }
 
 
@@ -65,7 +81,17 @@ int initSD() {
 int init() {
     gpioSetPinMode(23, PIN_MODE_INPUT_PULLUP);
     gpioSetPinMode(13, PIN_MODE_OUTPUT); //onboard LED
-    //blink(1);
+    //gpioSetPinMode( 9, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode( 8, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(15, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(16, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(15, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(16, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(17, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(18, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(19, PIN_MODE_OUTPUT); //XXX remove
+    //gpioSetPinMode(20, PIN_MODE_OUTPUT); //XXX remove
+    blink(1);
 
     //init serial
     int err = 0;
@@ -89,6 +115,11 @@ int init() {
     printf("RAM: %lld KB  ", val / 1024LL);
     osGetMemorySize(MICRON_MEM_MAIN_ROM, &val);
     printf("ROM: %lld KB\r\n", val / 1024LL);
+
+    gpioSetPinOutput( 8, 1); delayMS(250); gpioSetPinOutput( 8, 0);
+    gpioSetPinOutput( 9, 1); delayMS(250); gpioSetPinOutput( 9, 0);
+    gpioSetPinOutput(15, 1); delayMS(250); gpioSetPinOutput(15, 0);
+    gpioSetPinOutput(16, 1); delayMS(250); gpioSetPinOutput(16, 0);
     delayMS(1000);
 
     printf("Starting...\r\n");
@@ -282,6 +313,84 @@ void cmd_list(const char *param) {
     close(card);
 }
 
+void cmd_peek1(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint32_t len  = strtoul(param, (char**)&param, 0);
+    if(!len) len = 1;
+
+    uint8_t *data = (uint8_t*)addr;
+    uint8_t *end  = (uint8_t*)(addr + len);
+    printf("\r\n");
+    for(uint32_t i=0; data < end; i += 16) {
+        printf("%08lX ", (uint32_t)data);
+        for(uint32_t j=0; j<16 && data < end; j++) {
+            printf("%s%04X", (j&3) ? " " : "  ", *(data++));
+        }
+        printf("\r\n");
+    }
+}
+
+void cmd_peek2(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint32_t len  = strtoul(param, (char**)&param, 0);
+    if(!len) len = 1;
+
+    uint16_t *data = (uint16_t*)addr;
+    uint16_t *end  = (uint16_t*)(addr + (len * 2));
+    printf("\r\n");
+    for(uint32_t i=0; data < end; i += 8) {
+        printf("%08lX ", (uint32_t)data);
+        for(uint32_t j=0; j<8 && data < end; j++) {
+            printf("%s%04X", (j&3) ? " " : "  ", *(data++));
+        }
+        printf("\r\n");
+    }
+}
+
+void cmd_peek4(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint32_t len  = strtoul(param, (char**)&param, 0);
+    if(!len) len = 1;
+
+    uint32_t *data = (uint32_t*)addr;
+    uint32_t *end  = (uint32_t*)(addr + (len * 4));
+    printf("\r\n");
+    for(uint32_t i=0; data < end; i += 4) {
+        printf("%08lX ", (uint32_t)data);
+        for(uint32_t j=0; j<4 && data < end; j++) {
+            printf(" %08X", *(data++));
+        }
+        printf("\r\n");
+    }
+}
+
+void cmd_poke1(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint8_t *data = (uint8_t*)addr;
+    while(*param) {
+        *data = strtoul(param, (char**)&param, 0);
+        data++;
+    }
+}
+
+void cmd_poke2(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint16_t *data = (uint16_t*)addr;
+    while(*param) {
+        *data = strtoul(param, (char**)&param, 0);
+        data++;
+    }
+}
+
+void cmd_poke4(const char *param) {
+    uint32_t addr = strtoul(param, (char**)&param, 0);
+    uint32_t *data = (uint32_t*)addr;
+    while(*param) {
+        *data = strtoul(param, (char**)&param, 0);
+        data++;
+    }
+}
+
 static struct {
 	const char *cmd;
 	void(*func)(const char*);
@@ -292,6 +401,12 @@ static struct {
     {"speedtest", cmd_speedTest},
     {"reset",     cmd_reset},
     {"ls",        cmd_list},
+    {"peek1",     cmd_peek1},
+    {"peek2",     cmd_peek2},
+    {"peek4",     cmd_peek4},
+    {"poke1",     cmd_poke1},
+    {"poke2",     cmd_poke2},
+    {"poke4",     cmd_poke4},
 	{NULL, NULL}
 };
 
@@ -310,9 +425,9 @@ void doCommand(const char *buf) {
 	for(int i=0; commands[i].cmd != NULL; i++) {
 		const char *param = strcmpCmd(buf, commands[i].cmd);
 		if(param) {
-            gpioSetPinOutput(13, 1);
+            //gpioSetPinOutput(13, 1);
 			commands[i].func(param);
-            gpioSetPinOutput(13, 0);
+            //gpioSetPinOutput(13, 0);
             printf("\r\n");
 			return;
 		}
@@ -331,6 +446,47 @@ int main() {
     while(1) {
         idle();
         if(redraw) {
+            if(_spiState[0]) {
+                ////save cursor; cursor to 1,1; set color
+                printf("\x1B[s\x1B[1;1H\x1B[38;5;14m");
+
+                //show buffer contents
+                int head = _spiState[0]->txbuf.head;
+                int tail = _spiState[0]->txbuf.tail;
+                int amt  = (head - tail) % SPI_TX_BUFSIZE;
+                printf("Tx Buffer [%d]:", amt);
+                for(int i=tail; i != head; i++) {
+                    if(i >= SPI_TX_BUFSIZE) i = 0;
+                    printf(" %02X", _spiState[0]->txbuf.data[i]);
+                }
+                head = _spiState[0]->rxbuf.head;
+                tail = _spiState[0]->rxbuf.tail;
+                amt  = (head - tail) % SPI_TX_BUFSIZE;
+                printf("\r\nRx Buffer [%d]:", amt);
+                for(int i=tail; i != head; i++) {
+                    if(i >= SPI_RX_BUFSIZE) i = 0;
+                    printf(" %02X", _spiState[0]->rxbuf.data[i]);
+                }
+
+                //show buffer stats
+                printf("\r\nTx %08X/%08X %08X %04X %04X Rx %08X/%08X %08X %04X %04X T %08X ",
+                    _spiState[0]->txCount, _spiState[0]->txBufCnt,
+                    _spiState[0]->irqFillCnt,
+                    _spiState[0]->txbuf.head, _spiState[0]->txbuf.tail,
+                    _spiState[0]->rxCount, _spiState[0]->rxBufCnt,
+                    _spiState[0]->irqEmptyCnt,
+                    _spiState[0]->rxbuf.head, _spiState[0]->rxbuf.tail,
+                    _spiState[0]->irqCnt);
+
+                //show SPI module state
+                printf("\r\nSR=%08X MCR=%08X RSER=%08X Tx=%08X %08X %08X %08X Rx=%08X %08X %08X %08X",
+                    SPI0_SR, SPI0_MCR, SPI0_RSER,
+                    SPI0_TXFR0, SPI0_TXFR1, SPI0_TXFR2, SPI0_TXFR3,
+                    SPI0_RXFR0, SPI0_RXFR1, SPI0_RXFR2, SPI0_RXFR3);
+
+                //reset color; restore cursor
+                printf("\x1B[0m\x1B[u");
+            }
             //clear entire line
             printf("\r\x1B[2K>: %s", cmd);
             sync(stdout);

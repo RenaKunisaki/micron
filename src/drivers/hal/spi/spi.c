@@ -3,6 +3,8 @@
 #endif
 #include <micron.h>
 
+SECTION(".bss") MicronSpiState *_spiState[NUM_SPI];
+
 int spiInit(uint32_t port, uint32_t pinCS, uint32_t speed,
 MicronSpiModeEnum mode) {
     /** Set up SPI.
@@ -20,12 +22,8 @@ MicronSpiModeEnum mode) {
 	//init state
 	_spiState[port] = (MicronSpiState*)malloc(sizeof(MicronSpiState));
 	if(_spiState[port] == NULL) return -ENOMEM;
-    _spiState[port]->pinCS        = pinCS;
-	_spiState[port]->transmitting = 0;
-	_spiState[port]->txbuf.head   = 0;
-	_spiState[port]->txbuf.tail   = 0;
-	_spiState[port]->rxbuf.head   = 0;
-	_spiState[port]->rxbuf.tail   = 0;
+    memset(_spiState[port], 0, sizeof(MicronSpiState));
+    _spiState[port]->pinCS = pinCS;
 
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiInit(port, pinCS, speed, mode);
@@ -136,19 +134,20 @@ int spiSetFrameSize(uint32_t port, uint32_t size) {
     #endif
 }
 
-int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count) {
+int spiWriteDummy(uint32_t port, uint32_t data, uint32_t count, bool cs) {
     /** Send dummy frames to SPI.
      *  @param port Which SPI port to use.
      *  @param data Data to send.
      *  @param count Number of frames to send.
      *  @return Number of frames (not bytes) queued (which may be as low as
      *   zero if the buffer is full), or negative error code.
-     *  @note This is the same as `spiWrite`, but does not assert CS.
-     *   The same data is used for every frame.
+     *  @note This is the same as `spiWrite`, but the same data is used for
+     *   every frame, and you have the option to not assert CS.
      */
     if(port > NUM_SPI) return -ENODEV;
+    //printf("spiWriteDummy(0x%X, %d)\r\n", data, count);
     #if defined(MCU_BASE_KINETIS)
-        return kinetis_spiWriteDummy(port, data, count);
+        return kinetis_spiWriteDummy(port, data, count, cs);
 
     #elif defined(MCU_BASE_IMX)
         return -ENOSYS; //XXX
@@ -168,6 +167,7 @@ int spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
      *   zero if the buffer is full), or negative error code.
      */
     if(port > NUM_SPI) return -ENODEV;
+    //printf("spiWrite(0x%X, %d)\r\n", data, len);
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiWrite(port, data, len, cont);
 
@@ -177,6 +177,24 @@ int spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
     #else
         return -ENOSYS;
     #endif
+}
+
+int spiWriteBlocking(uint32_t port, const void *data, uint32_t len, bool cont,
+uint32_t timeout) {
+    //printf("spiWriteBlocking(0x%X, %d)\r\n", data, len);
+    const uint8_t *d = (const uint8_t*)data;
+    uint32_t i = 0;
+    timeout += millis();
+    while(millis() < timeout && i < len) {
+        int r = spiWrite(port, &d[i], len-i, cont);
+        if(r < 0) return r;
+        i += r;
+        irqWait();
+    }
+    spiWaitTxDone(port, timeout);
+    //printf("spiWriteBlocking %d/%d\r\n", i, len);
+    if(i >= len) return len;
+    return -ETIMEDOUT;
 }
 
 int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
@@ -189,6 +207,7 @@ int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
      *   zero if the buffer is empty), or negative error code.
      */
     if(port > NUM_SPI) return -ENODEV;
+    //printf("spiRead(%d)\r\n", len);
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiRead(port, out, len, timeout);
 
@@ -198,6 +217,23 @@ int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
     #else
         return -ENOSYS;
     #endif
+}
+
+int spiReadBlocking(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
+    //printf("spiReadBlocking(%d)\r\n", len);
+    uint8_t *d = (uint8_t*)out;
+    uint32_t limit = millis() + timeout;
+    uint32_t i = 0;
+    while(millis() < limit && i < len) {
+        //XXX proper timeout handling
+        int r = spiRead(port, &d[i], len-i, timeout);
+        if(r < 0) return r;
+        i += r;
+        irqWait();
+    }
+    //printf("spiReadBlocking %d/%d\r\n", i, len);
+    if(i >= len) return len;
+    return -ETIMEDOUT;
 }
 
 int spiWaitTxDone(uint32_t port, uint32_t timeout) {

@@ -69,8 +69,15 @@ MicronSpiModeEnum mode) {
     if(err) return err;
 
     //enable interrupt
-    NVIC_SET_PRIORITY(INT_SPI0 + port, spiInterruptPriority);
-	NVIC_ENABLE_IRQ  (INT_SPI0 + port);
+    NVIC_SET_PRIORITY(IRQ_SPI0 + port, spiInterruptPriority);
+	NVIC_ENABLE_IRQ  (IRQ_SPI0 + port);
+    //XXX only enable TFFF when we have something to send.
+    //otherwise it loops the interrupt forever.
+    SPI0_RSER = 0 //SPI_RSER_TCF_RE //Transmission Complete Request Enable
+        //| SPI_RSER_TFFF_RE //Tx FIFO Fill Request Enable
+        | SPI_RSER_RFDF_RE //Rx FIFO Drain Request Enable
+        //| SPI_RSER_EOQF_RE //Finished Request Enabled
+        ;
 
     return 0;
 }
@@ -166,21 +173,50 @@ int kinetis_spiSetFrameSize(uint32_t port, uint32_t size) {
     return 0;
 }
 
-int kinetis_spiWriteDummy(uint32_t port, uint32_t data, uint32_t count) {
+static int _writeTxBuf(MicronSpiState *state, uint32_t data, uint32_t i,
+uint32_t len, bool cont, uint32_t pcsbits) {
+    //this exists mainly to avoid duplicating most of this code
+    //for the cases where frame size > 8 and <= 8.
+
+    if(cont) data |= SPI_PUSHR_CONT;
+    data |= pcsbits;
+    //if((i+1) == len) data |= SPI_PUSHR_EOQ; //end of queue
+    //that halts SPI until we start it again, so let's not...
+    state->txBufCnt++;
+
+    int next = state->txbuf.head + 1;
+    if(next >= SPI_TX_BUFSIZE) next = 0;
+    if(next == state->txbuf.tail) return 0;
+    state->txbuf.data[state->txbuf.head] = data;
+    state->txbuf.head = next;
+
+    //if Tx FIFO is empty but Tx buffer isn't, enable the "Tx FIFO Not Full"
+    //interrupt so that the ISR will begin the transmission.
+    //if it's already enabled, this does nothing.
+    SPI0_RSER |= SPI_RSER_TFFF_RE;
+    SPI0_SR   |= SPI_SR_TFFF;
+    return 1;
+}
+
+int kinetis_spiWriteDummy(uint32_t port, uint32_t data, uint32_t count,
+bool cs) {
     MicronSpiState *state = _spiState[port];
     if(!state) return -EBADFD;
-    irqDisable();
+    //irqDisable();
+
+    //if we let SPI run while we're buffering data, then some of it will get
+    //put into the FIFO, and some will get put into the buffer, meaning it will
+    //get sent out of order.
+    bool paused = spiPause(port, true);
+    uint32_t pcsbits = pcs[port] << 16;
+    if(!cs) pcsbits = 0;
     uint32_t i = 0;
     while(i < count) {
-        int next = state->txbuf.head + 1;
-        if(next >= SPI_TX_BUFSIZE) next = 0;
-        if(next == state->txbuf.tail) break;
-        uint32_t d = data & 0xFFFF;
-        if((i+1) == count) d |= SPI_PUSHR_EOQ; //end of queue
-        state->txbuf.data[state->txbuf.head] = d;
-        state->txbuf.head = next;
+        //printf("\x1B[36m%02X \x1B[0m", data);
+        if(!_writeTxBuf(state, data & 0xFFFF, i, count, false, pcsbits)) break;
         i++;
     }
+    if(!paused) spiPause(port, false);
     irqEnable();
     return i;
 
@@ -207,28 +243,15 @@ int kinetis_spiWriteDummy(uint32_t port, uint32_t data, uint32_t count) {
     return 0;
 }
 
-static int _writeTxBuf(MicronSpiState *state, uint32_t data, uint32_t i,
-uint32_t len, bool cont, uint32_t pcsbits) {
-    //this exists mainly to avoid duplicating most of this code
-    //for the cases where frame size > 8 and <= 8
-    int next = state->txbuf.head + 1;
-    if(next >= SPI_TX_BUFSIZE) next = 0;
-    if(next == state->txbuf.tail) return 0;
-    if(cont) data |= SPI_PUSHR_CONT;
-    if(pcsbits) data |= pcsbits;
-    if((i+1) == len) data |= SPI_PUSHR_EOQ; //end of queue
-    state->txbuf.data[state->txbuf.head] = data;
-    state->txbuf.head = next;
-    return 1;
-}
-
 int kinetis_spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
     MicronSpiState *state = _spiState[port];
     if(!state) return -EBADFD;
+    //printf("spiWrite(%ld, %p, %ld, %d)\r\n", port, data, len, cont);
 
     uint32_t pcsbits = pcs[port] << 16;
     uint32_t i = 0;
-    irqDisable(); {
+    //irqDisable(); {
+        bool paused = spiPause(port, true);
         uint32_t frameSize = (SPI0_CTAR0 & SPI_CTAR_FMSZ(15));
         if(frameSize > (7 << 27)) {
             //SPI_CTAR_FMSZ is bits 27-30, and is the size minus one.
@@ -238,6 +261,7 @@ int kinetis_spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
             //checking is needed.
             const uint16_t *dIn = (const uint16_t*)data;
             while(i < len) {
+                //printf("\x1B[32m%04X \x1B[0m", *dIn);
                 if(!_writeTxBuf(state, *(dIn++), i, len, cont, pcsbits)) break;
                 i++;
             }
@@ -245,19 +269,54 @@ int kinetis_spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
         else { //frame size is 8 bits or fewer
             const uint8_t *dIn = (const uint8_t*)data;
             while(i < len) {
+                //printf("\x1B[32m%02X \x1B[0m", *dIn);
                 if(!_writeTxBuf(state, *(dIn++), i, len, cont, pcsbits)) break;
                 i++;
             }
         }
-    }
-    irqEnable();
+
+        //DEBUG
+        #if 0
+            uint32_t ntx = (SPI0_SR & SPI_SR_TXCTR) >> 12;
+            const uint32_t *fifo = (const uint32_t*)&SPI0_TXFR0;
+
+            irqEnable();
+            printf("wrote %d/%d frames\r\n", i, len);
+
+            printf("TX FIFO[%ld] (h%04X t%04X): ", ntx, state->txbuf.head,
+                state->txbuf.tail);
+            for(uint32_t n=0; n<ntx; n++) {
+                printf("%08X ", fifo[n]);
+            }
+
+            printf(" | ");
+            int tail = state->txbuf.tail;
+            while(tail != state->txbuf.head) {
+                printf("%08X ", state->txbuf.data[tail++]);
+                if(tail >= SPI_TX_BUFSIZE) tail = 0;
+            }
+
+            printf("\r\n");
+
+            irqDisable();
+        #endif
+
+        if(!paused) spiPause(port, false);
+    //}
+    //irqEnable();
+
     return i;
 }
 
-static int _waitForData(MicronSpiState *state, uint32_t t) {
+static int _waitForData(MicronSpiState *state, uint32_t limit) {
+    SPI0_RSER |= SPI_RSER_RFDF_RE;
     while(state->rxbuf.tail == state->rxbuf.head) {
-        if(millis() >= t) return 0;
-        idle();
+        if(millis() >= limit) return 0;
+
+        //enable Rx FIFO Not Empty interrupt.
+        //ISR will disable it again if buffer is full.
+        SPI0_RSER |= SPI_RSER_RFDF_RE;
+        irqWait();
     }
     return 1;
 }
@@ -266,8 +325,8 @@ int kinetis_spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
     MicronSpiState *state = _spiState[port];
     if(!state) return -EBADFD;
 
-    uint32_t t = millis() + timeout;
-    uint32_t i = 0;
+    uint32_t limit = millis() + timeout;
+    uint32_t count = 0;
 
     //assert CS
     //if(regCS[port]) *regCS[port] = 0;
@@ -275,32 +334,36 @@ int kinetis_spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
     uint32_t frameSize = (SPI0_CTAR0 & SPI_CTAR_FMSZ(15));
     if(frameSize > (7 << 27)) { // > 8-bit frames
         uint16_t *dOut = (uint16_t*)out;
-        while(i < len) {
-            if(!_waitForData(state, t)) break;
+        while(count < len && state->rxbuf.tail != state->rxbuf.head) {
+            if(!_waitForData(state, limit)) break;
             irqDisable(); {
                 unsigned int next = state->rxbuf.tail + 1;
                 if(next >= SPI_RX_BUFSIZE) next = 0;
+                //printf("\x1B[31m%04X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
                 (*(dOut++)) = state->rxbuf.data[state->rxbuf.tail];
                 state->rxbuf.tail = next;
-            }
-            irqEnable();
+                state->rxBufCnt++;
+                count++;
+            } irqEnable();
         }
     }
     else { // <= 8-bit frames
         uint8_t *dOut = (uint8_t*)out;
-        while(i < len) {
-            if(!_waitForData(state, t)) break;
+        while(count < len && state->rxbuf.tail != state->rxbuf.head) {
+            if(!_waitForData(state, limit)) break;
             irqDisable(); {
                 unsigned int next = state->rxbuf.tail + 1;
                 if(next >= SPI_RX_BUFSIZE) next = 0;
+                //printf("\x1B[31m%02X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
                 (*(dOut++)) = state->rxbuf.data[state->rxbuf.tail];
                 state->rxbuf.tail = next;
-            }
-            irqEnable();
+                state->rxBufCnt++;
+                count++;
+            } irqEnable();
         }
     }
     //if(regCS[port]) *regCS[port] = 1;
-    return i;
+    return count;
 }
 
 
@@ -308,14 +371,32 @@ int kinetis_spiWaitTxDone(uint32_t port, uint32_t timeout) {
     //Wait until transmission is finished
     MicronSpiState *state = _spiState[port];
     if(!state) return -EBADFD;
+    //printf("waitTxDone buf %d %d\r\n",
+    //    state->txbuf.head, state->txbuf.tail);
 
-    uint32_t t = millis() + timeout;
-    //while(!(SPI0_SR & SPI_SR_TCF)) {
+    uint32_t limit = millis() + timeout;
+
+    //wait for tx buffer to be empty
     while(state->txbuf.head != state->txbuf.tail) {
-        if(millis() >= t) return -ETIMEDOUT;
-        idle();
+        if(millis() >= limit) {
+            //printf("waitTxDone failed 1, buf %d %d\r\n",
+            //    state->txbuf.head, state->txbuf.tail);
+            return -ETIMEDOUT;
+        }
+        irqWait();
     }
-    //SPI0_SR = SPI_SR_TCF; //clear
+
+    //wait for end-of-transmission flag
+    //while(!(SPI0_SR & SPI_SR_TCF)) {
+    while(SPI0_SR & SPI_SR_TXCTR) {
+        if(millis() >= limit) {
+            //printf("waitTxDone failed 2, buf %d %d\r\n",
+            //    state->txbuf.head, state->txbuf.tail);
+            return -ETIMEDOUT;
+        }
+        irqWait();
+    }
+    SPI0_SR = SPI_SR_TCF; //clear
     return 0;
 }
 

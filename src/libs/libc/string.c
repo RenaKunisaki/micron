@@ -201,7 +201,7 @@ long int strtol(const char *str, char **endptr, int base) {
     }
 
     //output pointer to next char
-    if(endptr) *endptr = (char*)&str[-1];
+    if(endptr) *endptr = (char*)str;
     return result * sign;
 }
 
@@ -236,6 +236,6 @@ unsigned long int strtoul(const char *str, char **endptr, int base) {
         result = (result * base) + n;
         //XXX check for overflow
     }
-    if(endptr) *endptr = (char*)&str[-1];
+    if(endptr) *endptr = (char*)str;
     return result;
 }
