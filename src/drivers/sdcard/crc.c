@@ -3,7 +3,8 @@ extern "C" {
     #include "sdcard.h"
 }
 
-static const uint8_t crcTable[256] = {
+//XXX can we eliminate this table?
+static const uint8_t crc7Table[256] = {
     0x00, 0x09, 0x12, 0x1B, 0x24, 0x2D, 0x36, 0x3F,
     0x48, 0x41, 0x5A, 0x53, 0x6C, 0x65, 0x7E, 0x77,
     0x19, 0x10, 0x0B, 0x02, 0x3D, 0x34, 0x2F, 0x26,
@@ -48,7 +49,29 @@ uint8_t sdcardCalcCrc(const void *data, size_t len) {
     const uint8_t *d = (const uint8_t*)data;
     uint8_t crc = 0;
     for(size_t i=0; i<len; i++) {
-        crc = crcTable[(crc << 1) ^ d[i]];
+        crc = crc7Table[(crc << 1) ^ d[i]];
     }
     return (crc << 1) | 1;
+}
+
+uint16_t sdcardCalcCrc16(uint16_t crc, const uint8_t *data, size_t len) {
+    /** Compute CRC16 for given data.
+     *  @param crc Initial CRC, which should usually be zero.
+     *  @param data Data to compute.
+     *  @param len Length of data.
+     *  @return CRC16 of data, using the particular "standard" CCITT
+     *   used by SD CMD17, as opposed to the dozens of other "standard" CCITTs
+     *   I found with various polynomials, bit orders, initial CRC, etc etc,
+     *   many of which claim to be also the correct ones for SD CRC16... ugh
+     */
+    //for all 0xFF bytes, CRC should be 0x7FA1
+    const uint8_t *d = (const uint8_t*)data;
+    while(len--) {
+        crc = crc ^ ((uint16_t)*(d++) << 8);
+        for(int i=0; i<8; i++) {
+            if(crc & 0x8000) crc = crc << 1 ^ 0x1021;
+            else crc = crc << 1;
+        }
+    }
+	return crc;
 }

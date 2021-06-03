@@ -20,13 +20,12 @@ typedef enum {
 #define SPI_TX_BUFSIZE 64
 #endif
 #ifndef SPI_RX_BUFSIZE
-#define SPI_RX_BUFSIZE 64
+#define SPI_RX_BUFSIZE 256
 #endif
 
 typedef struct {
     uint8_t pinCS;
-    //volatile int transmitting : 1; //is this port currently transmitting?
-	struct {
+    struct {
         //for simplicity's sake this is just the entire PUSHR value.
         //that lets us control CS and such, and do up to 16-bit frame size
         //(the maximum supported by hardware).

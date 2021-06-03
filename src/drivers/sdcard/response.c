@@ -112,6 +112,7 @@ int _sdGetRespR7(MicronSdCardState *state, uint8_t *resp, uint32_t timeout) {
         return err;
     }
 
+    _sdSendDummyBytes(state, 1, timeout, true);
     resp[0] = err & 0xFF;
     err = spiReadBlocking(state->port, &resp[1], 5, timeout);
     if(err < 0) return err;

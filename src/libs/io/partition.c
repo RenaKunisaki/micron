@@ -26,11 +26,8 @@ int ioGetPartition(FILE *blkdev, int which, MicronPartition *out) {
     if(err < 0) return err;
 
     if(data[0x1FE] != 0x55 || data[0x1FF] != 0xAA) {
-        #if FAT_DEBUG_PRINT
-            printf("FAT: Bad MBR signature 0x%02X%02X, expected 0x55AA\r\n",
-                data[0x1FE], data[0x1FF]);
-        #endif
-        //bad MBR signature
+        //printf("FAT: Bad MBR signature 0x%02X%02X, expected 0x55AA\r\n",
+        //    data[0x1FE], data[0x1FF]);
         return -EILSEQ;
     }
 

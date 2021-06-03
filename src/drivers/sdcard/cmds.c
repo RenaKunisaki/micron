@@ -107,7 +107,10 @@ int _sdSendCmd0(MicronSdCardState *state, uint32_t timeout) {
      */
     uint32_t limit = millis() + timeout;
     int ok, err;
-    do {
+    //if the host was reset during a block read, the card might be responding
+    //with up to an entire sector's worth of data before it can accept any
+    //commands, so we'll try a little more than 512 times.
+    for(int tries=0; tries<520; tries++) {
         if(millis() >= limit) return -ETIMEDOUT;
         ok = 0;
         uint8_t resp = 0xBB; //arbitrary dummy value
@@ -115,11 +118,11 @@ int _sdSendCmd0(MicronSdCardState *state, uint32_t timeout) {
         //longer than the actual timeout, eg if we already waited
         //90% of that time on previous attempts.
         err = sdcardSendCommand(state, SD_CMD_RESET, 0, &resp, 1, 5000);
-        //if(err) return err;
+        if(err) return err;
         //printf("CMD0 R=%02X E=%d\r\n", resp, err);
-        if(resp == 0x01) ok = 1;
-    } while(!ok);
-    return 0;
+        if(resp == 0x01) return 0;
+    }
+    return -ETIMEDOUT;
 }
 
 

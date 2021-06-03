@@ -95,6 +95,8 @@ typedef struct {
     uint16_t sectorSize; //size in bytes
     uint64_t accessSpeed; //in nanoseconds
     uint64_t transferRate; //in bytes/sec
+    void *blockCache; // -> 0x512 * (n+1) bytes; first "block" is u32 blockId[]
+    uint32_t blockCacheSize; //number of blocks
 } MicronSdCardState;
 
 #include "filecls.h"
@@ -113,6 +115,7 @@ int _sdSendCmd55(MicronSdCardState *state, uint32_t timeout);
 
 //crc.c
 uint8_t sdcardCalcCrc(const void *data, size_t len);
+uint16_t sdcardCalcCrc16(uint16_t crc, const uint8_t *data, size_t len);
 
 //csd.c
 int _sdGetCSD(MicronSdCardState *state, uint32_t timeout, void *csd);
@@ -127,9 +130,9 @@ int _sdSetBlockSize(MicronSdCardState *state, uint32_t size, uint32_t timeout);
 int _sdWaitForData(MicronSdCardState *state, void *dest, size_t size,
     uint32_t timeout);
 int sdReadBlock(MicronSdCardState *state, uint32_t block, void *dest,
-    uint32_t timeout);
+    uint32_t timeout, bool checkCrc);
 int sdReadBlocks(MicronSdCardState *state, uint32_t firstBlock,
-    MicronSdCardReadBlocksCb callback, uint32_t timeout);
+    MicronSdCardReadBlocksCb callback, uint32_t timeout, bool checkCrc);
 
 //response.c
 int _sdWaitForResponse(MicronSdCardState *state, uint32_t timeout);
@@ -139,6 +142,7 @@ int _sdGetRespR7(MicronSdCardState *state, uint8_t *resp, uint32_t timeout);
 
 //sdcard.c
 int sdcardInit(MicronSdCardState *state);
+int sdcardUpdateSpeed(MicronSdCardState *state, uint32_t timeout);
 int sdcardReset(MicronSdCardState *state, uint32_t timeout);
 
 

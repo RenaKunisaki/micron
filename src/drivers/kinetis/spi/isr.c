@@ -4,6 +4,7 @@
 #include <micron.h>
 
 WEAK uint8_t spiInterruptPriority = 128; //0 = highest priority, 255 = lowest
+uint32_t _spi_rxOverflowCount = 0;
 
 static volatile uint32_t *p_sr[NUM_SPI] = {
     &SPI0_SR,
@@ -195,11 +196,11 @@ void isrSpi(int which) {
     volatile uint32_t *rser  = p_rser   [which];
     MicronSpiState *state    = _spiState[which];
     if(!state) return;
-    gpioSetPinOutput(13, 1);
     state->irqCnt++;
     if((*sr) & SPI_SR_TFFF) state->irqFillCnt++;
     if((*sr) & SPI_SR_RFDF) state->irqEmptyCnt++;
 
+    #if 0 //check for ISR loop caused by not acknowledging properly
     static uint32_t lastT = 0;
     static uint32_t lastC = 0;
 
@@ -217,6 +218,12 @@ void isrSpi(int which) {
     else {
         lastT = now;
         lastC = 0;
+    }
+    #endif
+
+    if((*sr) & SPI_SR_RFOF) {
+        _spi_rxOverflowCount++;
+        *sr |= SPI_SR_RFOF;
     }
 
     //while tx buffer is not empty, and FIFO is not full,
@@ -256,14 +263,6 @@ void isrSpi(int which) {
 
     //all IRQ bits are write-1-to-clear so this will acknowledge them all
     *sr = *sr;
-
-    // gpioSetPinOutput(15, ((*sr) & SPI_SR_TFFF) ? 1 : 0); //XXX remove
-    // gpioSetPinOutput(16, ((*sr) & SPI_SR_RFDF) ? 1 : 0);
-    // gpioSetPinOutput(17, ((*sr) & SPI_SR_TCF ) ? 1 : 0);
-    // gpioSetPinOutput(18, ((*sr) & SPI_SR_EOQF) ? 1 : 0);
-    // gpioSetPinOutput(19, ((*sr) & SPI_SR_TFUF) ? 1 : 0);
-    // gpioSetPinOutput(20, ((*sr) & SPI_SR_RFOF) ? 1 : 0);
-    gpioSetPinOutput(13, 0);
 }
 
 ISRFUNC void isrSpi0(void) {

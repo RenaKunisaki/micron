@@ -17,6 +17,45 @@ int sdcardInit(MicronSdCardState *state) {
     if(err) return err;
     err = spiPause(state->port, false);
     if(err < 0) return err;
+
+    //init block cache
+    //XXX handle case where blockCacheSize > SD_BLOCK_SIZE / sizeof(uint32_t)
+    if(state->blockCacheSize > 0) {
+        //first "block" of cache is uint32_t blockId[] telling which block
+        //is in each cache entry (0xFFFFFFFF = none; this block is not included)
+        size_t cacheSize = SD_BLOCK_SIZE * (state->blockCacheSize + 1);
+        state->blockCache = malloc(cacheSize);
+        if(state->blockCache) {
+            memset(state->blockCache, 0xFF, cacheSize);
+        }
+        else {
+            #if SDCARD_DEBUG_PRINT
+                printf("SD: not enough memory for block cache\r\n");
+            #endif
+            state->blockCacheSize = 0;
+        }
+    }
+
+    return 0;
+}
+
+int sdcardUpdateSpeed(MicronSdCardState *state, uint32_t timeout) {
+    /** Recalibrate SD card timing after changing baud rate.
+     *  This must be called whenever the SPI speed is changed,
+     *  to allow the card to adjust itself to the new speed.
+     *  Some cards will work without doing this, but not all.
+     *  @param state Card state.
+     *  @param timeout Maximum time to wait, in milliseconds.
+     *  @return 0 on success, or negative error code on failure.
+     */
+    //Send at least 74 dummy bits.
+    //10 bytes = 80 bits, so that'll do.
+    //The card uses this to calibrate itself to our exact timing.
+    #if SDCARD_DEBUG_PRINT
+        printf("SD: send dummy bytes...\r\n");
+    #endif
+    spiWriteDummy(state->port, 0xFF, 10, false);
+    spiWaitTxDone(state->port, 1000);
     return 0;
 }
 
@@ -27,19 +66,8 @@ int sdcardReset(MicronSdCardState *state, uint32_t timeout) {
      *  @return 0 on success, or negative error code on failure.
      *  @note This should normally be called after sdcardInit().
      */
-    int err;
-
-    //Send at least 74 dummy bits.
-    //10 bytes = 80 bits, so that'll do.
-    #if SDCARD_DEBUG_PRINT
-        printf("SD: send dummy bytes...\r\n");
-    #endif
-    delayMS(1);
-    spiWriteDummy(state->port, 0xFF, 10, false);
-    uint32_t _d = 0xFF;
-    spiWriteBlocking(state->port, &_d, 1, false, 1000);
-    spiWaitTxDone(state->port, 1000);
-    delayMS(1);
+    int err = sdcardUpdateSpeed(state, timeout);
+    if(err < 0) return err;
 
     //send CMD0
     #if SDCARD_DEBUG_PRINT
@@ -85,8 +113,7 @@ int sdcardReset(MicronSdCardState *state, uint32_t timeout) {
     }
     else if(err == -ETIMEDOUT) {
         #if SDCARD_DEBUG_PRINT
-            //even though the spec I could find suggests 3.3V is the proper
-            //voltage, I couldn't get any response until I used 5V.
+            //this may indicate a weak or noisy power supply, or just a bug.
             printf("SD: CMD41 timeout - card voltage too low?\r\n");
         #endif
     }

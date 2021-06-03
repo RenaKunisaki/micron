@@ -60,14 +60,19 @@ int resetSD() {
     printf("SD size: %lld MB\r\n", sdcard.cardSize / 1048576LL);
     //in theory we can go up to 25MHz, but in practice I get errors
     //at somewhere around 20MHz, probably because of my shoddy wiring.
-    spiSetSpeed(sdcard.port, 15000000);
-    return 0;
+    uint32_t baud = 1000000;
+    err = spiSetSpeed(sdcard.port, baud);
+    if(!err) err = sdcardUpdateSpeed(&sdcard, 1000);
+    if(!err) printf("Increase baud to %ld\r\n", baud);
+    else printf("Error adjusting baud rate: %d\r\n", err);
+    return err;
 }
 
 int initSD() {
     //XXX move to driver
     sdcard.port = 0;
     sdcard.pinCS = 10;
+    sdcard.blockCacheSize = 8;
 
     //XXX shouldn't init SPI for us unless it isn't already inited
     printf("SD init... ");
@@ -116,11 +121,19 @@ int init() {
     osGetMemorySize(MICRON_MEM_MAIN_ROM, &val);
     printf("ROM: %lld KB\r\n", val / 1024LL);
 
-    gpioSetPinOutput( 8, 1); delayMS(250); gpioSetPinOutput( 8, 0);
+    /* gpioSetPinOutput( 8, 1); delayMS(250); gpioSetPinOutput( 8, 0);
     gpioSetPinOutput( 9, 1); delayMS(250); gpioSetPinOutput( 9, 0);
     gpioSetPinOutput(15, 1); delayMS(250); gpioSetPinOutput(15, 0);
     gpioSetPinOutput(16, 1); delayMS(250); gpioSetPinOutput(16, 0);
-    delayMS(1000);
+    delayMS(1000); */
+
+    /* uint8_t stupid[512];
+    memset(stupid, 0xFF, 512);
+    uint16_t fuck1 = sdcardCalcCrc16(0x0000, stupid, 512);
+    uint16_t fuck2 = sdcardCalcCrc16(0xFFFF, stupid, 512);
+    printf("CRC %04X %04X need 7FA1\r\n", fuck1, fuck2);
+    osBootloader(); */
+
 
     printf("Starting...\r\n");
     err = initSD();
@@ -159,7 +172,7 @@ void shutdown(const char *param) {
 void cmd_readSector(const char *param) {
     uint32_t sector = strtoul(param, (char**)&param, 0);
     uint8_t buf[512]; //XXX check card sector size
-    int err = sdReadBlock(&sdcard, sector, buf, 10000);
+    int err = sdReadBlock(&sdcard, sector, buf, 10000, true);
     if(err) printf("Error %d\r\n", err);
     else hexdump(buf, 512);
 }
@@ -171,6 +184,7 @@ void cmd_setBaud(const char *param) {
         return;
     }
     int err = spiSetSpeed(sdcard.port, baud);
+    if(!err) err = sdcardUpdateSpeed(&sdcard, 1000);
     if(err) printf("Error %d\r\n", err);
     else printf("OK\r\n");
 }
@@ -181,7 +195,7 @@ void cmd_speedTest(const char *param) {
     //read sector at low speed
     printf("Read sector 0 at low speed (wait!)...\r\n");
     uint8_t buf[512]; //XXX check card sector size
-    int err = sdReadBlock(&sdcard, 0, buf, 20000);
+    int err = sdReadBlock(&sdcard, 0, buf, 20000, true);
     if(err) {
         printf("Error %d\r\n", err);
         return;
@@ -210,6 +224,8 @@ void cmd_speedTest(const char *param) {
         printf("Try %9ld Hz (%4ld %cHz)... ", baud, val, units[unit]);
         int err = spiSetSpeed(sdcard.port, baud);
         if(err) { printf("spiSetSpeed error %d\r\n", err); break; }
+        err = sdcardUpdateSpeed(&sdcard, 1000);
+        if(err) { printf("sdcardUpdateSpeed error %d\r\n", err); break; }
 
         for(int tries=0; tries<3; tries++) {
             //resetSD();
@@ -217,7 +233,7 @@ void cmd_speedTest(const char *param) {
 
             memset(buf2, 0xEE, sizeof(buf2));
             uint32_t time = millis();
-            err = sdReadBlock(&sdcard, 0, buf2, 10000);
+            err = sdReadBlock(&sdcard, 0, buf2, 10000, true);
             time = millis() - time;
             if(err) {
                 printf("sdReadBlock error %d\r\n", err);
@@ -446,23 +462,25 @@ int main() {
     while(1) {
         idle();
         if(redraw) {
-            if(_spiState[0]) {
+            if(_spiState[0] && false) {
                 ////save cursor; cursor to 1,1; set color
                 printf("\x1B[s\x1B[1;1H\x1B[38;5;14m");
 
                 //show buffer contents
                 int head = _spiState[0]->txbuf.head;
                 int tail = _spiState[0]->txbuf.tail;
-                int amt  = (head - tail) % SPI_TX_BUFSIZE;
-                printf("Tx Buffer [%d]:", amt);
+                int amt  = head - tail;
+                if(amt < 0) amt += SPI_TX_BUFSIZE;
+                printf("Tx Buffer [%3d]:", amt);
                 for(int i=tail; i != head; i++) {
                     if(i >= SPI_TX_BUFSIZE) i = 0;
                     printf(" %02X", _spiState[0]->txbuf.data[i]);
                 }
                 head = _spiState[0]->rxbuf.head;
                 tail = _spiState[0]->rxbuf.tail;
-                amt  = (head - tail) % SPI_TX_BUFSIZE;
-                printf("\r\nRx Buffer [%d]:", amt);
+                amt  = head - tail;
+                if(amt < 0) amt += SPI_RX_BUFSIZE;
+                printf("\r\nRx Buffer [%3d]:", amt);
                 for(int i=tail; i != head; i++) {
                     if(i >= SPI_RX_BUFSIZE) i = 0;
                     printf(" %02X", _spiState[0]->rxbuf.data[i]);
@@ -501,6 +519,10 @@ int main() {
                 cmdPos = 0;
                 cmd[cmdPos] = 0;
                 redraw = true;
+
+                if(_spi_rxOverflowCount) {
+                    printf("\x1B[31mSPI Rx Overflow count: %d\x1B[0m\r\n", _spi_rxOverflowCount);
+                }
                 break;
 
             case '\b': case '\x7F': //backspace

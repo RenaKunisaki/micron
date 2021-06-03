@@ -21,11 +21,18 @@ int sdFileCls_read(FILE *self, void *dest, size_t len) {
         size_t remLen = len - i; //remaining length
         if(!part && remLen >= SD_BLOCK_SIZE) {
             //read directly into dest
-            err = sdReadBlock(state, block, out, 10000);
+            for(int tries=0; tries<5; tries++) {
+                err = sdReadBlock(state, block, out, 10000, true);
+                if(err != -EIO) break; //retry if CRC error
+            }
         }
         else { //read into buf and copy to dest
+            //XXX do some cards allow to read partial blocks?
             uint8_t buf[SD_BLOCK_SIZE];
-            err = sdReadBlock(state, block, buf, 10000);
+            for(int tries=0; tries<5; tries++) {
+                err = sdReadBlock(state, block, buf, 10000, true);
+                if(err != -EIO) break; //retry if CRC error
+            }
             if(!err) memcpy(out, &buf[part], MIN((size_t)SD_BLOCK_SIZE, remLen));
         }
         if(err) return err;

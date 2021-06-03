@@ -71,12 +71,8 @@ MicronSpiModeEnum mode) {
     //enable interrupt
     NVIC_SET_PRIORITY(IRQ_SPI0 + port, spiInterruptPriority);
 	NVIC_ENABLE_IRQ  (IRQ_SPI0 + port);
-    //XXX only enable TFFF when we have something to send.
-    //otherwise it loops the interrupt forever.
-    SPI0_RSER = 0 //SPI_RSER_TCF_RE //Transmission Complete Request Enable
-        //| SPI_RSER_TFFF_RE //Tx FIFO Fill Request Enable
-        | SPI_RSER_RFDF_RE //Rx FIFO Drain Request Enable
-        //| SPI_RSER_EOQF_RE //Finished Request Enabled
+    SPI0_RSER = SPI_RSER_RFDF_RE //Rx FIFO Drain Request Enable
+        | SPI_RSER_RFOF_RE //Rx FIFO Overflow
         ;
 
     return 0;
@@ -212,7 +208,9 @@ bool cs) {
     if(!cs) pcsbits = 0;
     uint32_t i = 0;
     while(i < count) {
-        //printf("\x1B[36m%02X \x1B[0m", data);
+        #if SPI_PRINT_DATA
+            printf("\x1B[36m%02X \x1B[0m", data);
+        #endif
         if(!_writeTxBuf(state, data & 0xFFFF, i, count, false, pcsbits)) break;
         i++;
     }
@@ -261,7 +259,9 @@ int kinetis_spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
             //checking is needed.
             const uint16_t *dIn = (const uint16_t*)data;
             while(i < len) {
-                //printf("\x1B[32m%04X \x1B[0m", *dIn);
+                #if SPI_PRINT_DATA
+                    printf("\x1B[32m%04X \x1B[0m", *dIn);
+                #endif
                 if(!_writeTxBuf(state, *(dIn++), i, len, cont, pcsbits)) break;
                 i++;
             }
@@ -269,7 +269,9 @@ int kinetis_spiWrite(uint32_t port, const void *data, uint32_t len, bool cont) {
         else { //frame size is 8 bits or fewer
             const uint8_t *dIn = (const uint8_t*)data;
             while(i < len) {
-                //printf("\x1B[32m%02X \x1B[0m", *dIn);
+                #if SPI_PRINT_DATA
+                    printf("\x1B[32m%02X \x1B[0m", *dIn);
+                #endif
                 if(!_writeTxBuf(state, *(dIn++), i, len, cont, pcsbits)) break;
                 i++;
             }
@@ -339,7 +341,9 @@ int kinetis_spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
             irqDisable(); {
                 unsigned int next = state->rxbuf.tail + 1;
                 if(next >= SPI_RX_BUFSIZE) next = 0;
-                //printf("\x1B[31m%04X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
+                #if SPI_PRINT_DATA
+                    printf("\x1B[31m%04X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
+                #endif
                 (*(dOut++)) = state->rxbuf.data[state->rxbuf.tail];
                 state->rxbuf.tail = next;
                 state->rxBufCnt++;
@@ -354,7 +358,9 @@ int kinetis_spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
             irqDisable(); {
                 unsigned int next = state->rxbuf.tail + 1;
                 if(next >= SPI_RX_BUFSIZE) next = 0;
-                //printf("\x1B[31m%02X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
+                #if SPI_PRINT_DATA
+                    printf("\x1B[31m%02X \x1B[0m", state->rxbuf.data[state->rxbuf.tail]);
+                #endif
                 (*(dOut++)) = state->rxbuf.data[state->rxbuf.tail];
                 state->rxbuf.tail = next;
                 state->rxBufCnt++;

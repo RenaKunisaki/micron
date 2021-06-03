@@ -208,6 +208,7 @@ int spiRead(uint32_t port, void *out, uint32_t len, uint32_t timeout) {
      */
     if(port > NUM_SPI) return -ENODEV;
     //printf("spiRead(%d)\r\n", len);
+    memset(out, 0xEE, len); //debug
     #if defined(MCU_BASE_KINETIS)
         return kinetis_spiRead(port, out, len, timeout);
 
